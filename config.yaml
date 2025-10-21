@@ -27,9 +27,8 @@ slider_mapping:
   5: 
 
 # set this to true if you want the controls inverted (i.e. top is 0%, bottom is 100%)
-invert_sliders: true
+invert_sliders: false
 
-# settings for connecting to the arduino board
-HostName: mix.local
-Port: 80
+# esp event source location
+URL: http://mix.local/events
 

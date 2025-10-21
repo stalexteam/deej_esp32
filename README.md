@@ -12,8 +12,8 @@ Instead of using a serial interface, data is transmitted with help of **[ESPHome
 As a result:
 
 * multiple Deej software instances can connect to the same mixer over Wi-Fi
-* no more one-PC-per-mixer limitation
-* and **no USB-UART drivers are needed** (hello from win11)
+* **no USB-UART drivers are needed** (hello from win11)
+* ability to integrate mixer into home assistant (dimmer control for example)
 
 ---
 
@@ -38,13 +38,15 @@ esphome/
 | 6×  | Potentiometer Module | [AliExpress](https://www.aliexpress.com/item/1005006733220962.html) |
 | 1×  | ESP32 Board          | [AliExpress](https://www.aliexpress.com/item/1005009640243412.html) |
 
+  (desolder the **side pins** on the potentiometers before mounting)
+  
 * STL for **this exact BOM** fits perfectly can be found in 
 
 ```
 esphome/
 ```
-
-  (desolder the **side pins** on the potentiometers before mounting)
+(For assembly you will also need M3 hot inserts with a external diameter of 4.5 mm and M3x8 screws)
+  
   
 ---
 
@@ -61,6 +63,10 @@ To stay within range, lower the potentiometer reference voltage:
 
 Use a small diode (e.g. 1N4148) to drop ≈ 0.2–0.3 V
 *(actually, almost any will be fine — even one found in a junk box, as long as it’s not burned out)*.
+
+
+**(!) you will need to change attenuation fields from 6db to 12db in esphome yaml**
+
 ![Diode](ref/2.png)
 
 ---
