@@ -3,7 +3,6 @@
 package deej
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -23,7 +22,7 @@ type Deej struct {
 	logger   *zap.SugaredLogger
 	notifier Notifier
 	config   *CanonicalConfig
-	serial   *SerialIO
+	sse      *SseIO
 	sessions *sessionMap
 
 	stopChannel chan bool
@@ -55,13 +54,13 @@ func NewDeej(logger *zap.SugaredLogger, verbose bool) (*Deej, error) {
 		verbose:     verbose,
 	}
 
-	serial, err := NewSerialIO(d, logger)
+	// Initialize SSE-based I/O (replacement for SerialIO)
+	sse, err := NewSseIO(d, logger)
 	if err != nil {
-		logger.Errorw("Failed to create SerialIO", "error", err)
-		return nil, fmt.Errorf("create new SerialIO: %w", err)
+		logger.Errorw("Failed to create SseIO", "error", err)
+		return nil, fmt.Errorf("create new SseIO: %w", err)
 	}
-
-	d.serial = serial
+	d.sse = sse
 
 	sessionFinder, err := newSessionFinder(logger)
 	if err != nil {
@@ -141,31 +140,19 @@ func (d *Deej) run() {
 	// watch the config file for changes
 	go d.config.WatchConfigFileChanges()
 
-	// connect to the arduino for the first time
+	// connect to the SSE endpoint for the first time
 	go func() {
-		if err := d.serial.Start(); err != nil {
-			d.logger.Warnw("Failed to start first-time serial connection", "error", err)
+		if err := d.sse.Start(); err != nil {
+			d.logger.Warnw("Failed to start first-time SSE connection", "error", err)
 
-			// If the port is busy, that's because something else is connected - notify and quit
-			if errors.Is(err, os.ErrPermission) {
-				d.logger.Warnw("Serial port seems busy, notifying user and closing",
-					"comPort", d.config.ConnectionInfo.COMPort)
+			// User-facing hint: URL might be wrong/unreachable
+			url := d.config.ConnectionInfo.URL
+			d.notifier.Notify(
+				fmt.Sprintf("Can't connect to %s!", url),
+				"Make sure the URL is correct and the ESPHome event stream is reachable.",
+			)
 
-				d.notifier.Notify(fmt.Sprintf("Can't connect to %s!", d.config.ConnectionInfo.COMPort),
-					"This serial port is busy, make sure to close any serial monitor or other deej instance.")
-
-				d.signalStop()
-
-				// also notify if the COM port they gave isn't found, maybe their config is wrong
-			} else if errors.Is(err, os.ErrNotExist) {
-				d.logger.Warnw("Provided COM port seems wrong, notifying user and closing",
-					"comPort", d.config.ConnectionInfo.COMPort)
-
-				d.notifier.Notify(fmt.Sprintf("Can't connect to %s!", d.config.ConnectionInfo.COMPort),
-					"This serial port doesn't exist, check your configuration and make sure it's set correctly.")
-
-				d.signalStop()
-			}
+			d.signalStop()
 		}
 	}()
 
@@ -191,7 +178,7 @@ func (d *Deej) stop() error {
 	d.logger.Info("Stopping")
 
 	d.config.StopWatchingConfigFile()
-	d.serial.Stop()
+	d.sse.Stop()
 
 	// release the session map
 	if err := d.sessions.release(); err != nil {

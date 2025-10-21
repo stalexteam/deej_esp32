@@ -19,13 +19,10 @@ type CanonicalConfig struct {
 	SliderMapping *sliderMap
 
 	ConnectionInfo struct {
-		COMPort  string
-		BaudRate int
+		URL string
 	}
 
 	InvertSliders bool
-
-	NoiseReductionLevel string
 
 	logger             *zap.SugaredLogger
 	notifier           Notifier
@@ -48,14 +45,11 @@ const (
 
 	configType = "yaml"
 
-	configKeySliderMapping       = "slider_mapping"
-	configKeyInvertSliders       = "invert_sliders"
-	configKeyCOMPort             = "com_port"
-	configKeyBaudRate            = "baud_rate"
-	configKeyNoiseReductionLevel = "noise_reduction"
+	configKeySliderMapping = "slider_mapping"
+	configKeyInvertSliders = "invert_sliders"
+	configKeyURL           = "URL"
 
-	defaultCOMPort  = "COM4"
-	defaultBaudRate = 9600
+	defaultURL = "http://mix.local/events"
 )
 
 // has to be defined as a non-constant because we're using path.Join
@@ -87,8 +81,7 @@ func NewConfig(logger *zap.SugaredLogger, notifier Notifier) (*CanonicalConfig, 
 
 	userConfig.SetDefault(configKeySliderMapping, map[string][]string{})
 	userConfig.SetDefault(configKeyInvertSliders, false)
-	userConfig.SetDefault(configKeyCOMPort, defaultCOMPort)
-	userConfig.SetDefault(configKeyBaudRate, defaultBaudRate)
+	userConfig.SetDefault(configKeyURL, defaultURL)
 
 	internalConfig := viper.New()
 	internalConfig.SetConfigName(internalConfigName)
@@ -224,20 +217,9 @@ func (cc *CanonicalConfig) populateFromVipers() error {
 	)
 
 	// get the rest of the config fields - viper saves us a lot of effort here
-	cc.ConnectionInfo.COMPort = cc.userConfig.GetString(configKeyCOMPort)
-
-	cc.ConnectionInfo.BaudRate = cc.userConfig.GetInt(configKeyBaudRate)
-	if cc.ConnectionInfo.BaudRate <= 0 {
-		cc.logger.Warnw("Invalid baud rate specified, using default value",
-			"key", configKeyBaudRate,
-			"invalidValue", cc.ConnectionInfo.BaudRate,
-			"defaultValue", defaultBaudRate)
-
-		cc.ConnectionInfo.BaudRate = defaultBaudRate
-	}
+	cc.ConnectionInfo.URL = cc.userConfig.GetString(configKeyURL)
 
 	cc.InvertSliders = cc.userConfig.GetBool(configKeyInvertSliders)
-	cc.NoiseReductionLevel = cc.userConfig.GetString(configKeyNoiseReductionLevel)
 
 	cc.logger.Debug("Populated config fields from vipers")
 
