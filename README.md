@@ -40,14 +40,25 @@ esphome/
 
   (desolder the **side pins** on the potentiometers before mounting)
   
-* STL for **this exact BOM** fits perfectly can be found in 
 
 ```
 esphome/
 ```
-(For assembly you will also need M3 hot inserts with a external diameter of 4.5 mm and M3x8 screws)
-  
-  
+
+---
+
+## 🔧 STL/Assembly
+
+* STL for **this exact BOM** fits perfectly can be found in 
+
+```
+esphome/stl.zip
+```
+
+For assembly you will also need M3 hot inserts with a external diameter of 4.5mm, M3x8 screws, 20x20x2 mm silicone pads.
+
+![Example](ref/20251021_223354.jpg)
+
 ---
 
 ## 🔌 Hardware Notes
