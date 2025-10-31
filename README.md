@@ -86,7 +86,7 @@ Use a small diode (e.g. 1N4148) to drop ≈ 0.2–0.3 V
 
 * Avoid **ADC3** — it’s internally reserved.
 * **GPIO 8** is used as the "ADC maximum" reference input.
-
+* to use mute/unmute (sw0..sw5) just connect any switch/latching button between GPIO9..GPIO14 and GND and configure switches_mapping section.
 
 ---
 
