@@ -30,6 +30,10 @@ are located in this repository under:
 esphome/
 ```
 
+* mix_momentary.yaml - If you wish to use momentary switches to mute the sound. 
+* mix_latching.yaml - for latching switches.
+* **If you don't need the mute button functionality**, we recommend using mix_latching.yaml and removing the binary_sensor block from it.
+
 ---
 
 ## 🧾 Bill of Materials
@@ -38,7 +42,7 @@ esphome/
 | --- | -------------------- | ------------------------------------------------------------------- |
 | 6×  | Potentiometer Module | [AliExpress](https://www.aliexpress.com/item/1005006733220962.html) |
 | 1×  | ESP32 Board          | [AliExpress](https://www.aliexpress.com/item/1005009640243412.html) |
-| 6×  | Switch               | Any kind of latching button or switch. (optionally)                 |
+| 6×  | Switch               | Any kind of latching/momentary switch/button. (optionally)          |
 
   (desolder the **side pins** on the potentiometers before mounting)
 

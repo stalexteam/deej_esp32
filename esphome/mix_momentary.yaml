@@ -1,0 +1,322 @@
+esphome:
+  name: mix
+  friendly_name: Mixer
+  min_version: 2024.11.0
+  name_add_mac_suffix: false
+  platformio_options:
+    build_flags: -DBOARD_HAS_PSRAM
+    board_build.flash_mode: dio
+    board_upload.maximum_size: 16777216
+  project: 
+    name: esphome.web
+    version: dev
+  includes:
+    - mix_tools.h
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: ESP32S3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+    version: recommended
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+# Enable logging
+logger:
+  level: INFO
+
+# Enable Home Assistant API
+# api:
+
+ota:
+  - platform: esphome
+    id: my_ota
+    password: !secret ota_password
+
+wifi:
+  enable_rrm: true
+  fast_connect: true
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Mixer Fallback Hotspot"
+    password: !secret fallback_password
+
+
+web_server:
+  port: 80
+
+captive_portal:
+
+sensor:
+  - platform: adc
+    id: vref
+    internal: true
+    pin: GPIO8
+    attenuation: 6db
+    update_interval: 10ms
+    samples: 128
+    raw: true
+
+  - platform: adc
+    id: s0_v
+    internal: true
+    pin: GPIO1
+    attenuation: 6db
+    update_interval: 10ms
+    samples: 128
+    raw: true
+
+  - platform: adc
+    id: s1_v
+    internal: true
+    pin: GPIO2
+    attenuation: 6db
+    update_interval: 10ms
+    samples: 128
+    raw: true
+
+  - platform: adc
+    id: s2_v
+    internal: true
+    pin: GPIO4
+    attenuation: 6db
+    update_interval: 10ms
+    samples: 128
+    raw: true
+
+  - platform: adc
+    id: s3_v
+    internal: true
+    pin: GPIO5
+    attenuation: 6db
+    update_interval: 10ms
+    samples: 128
+    raw: true
+
+  - platform: adc
+    id: s4_v
+    internal: true
+    pin: GPIO6
+    attenuation: 6db
+    update_interval: 10ms
+    samples: 128
+    raw: true
+
+  - platform: adc
+    id: s5_v
+    internal: true
+    pin: GPIO7
+    attenuation: 6db
+    update_interval: 10ms
+    samples: 128
+    raw: true
+
+  - platform: template
+    id: pot0
+    name: "pot0"
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    update_interval: 10ms
+    lambda: |-
+      return (float) mixer_math((uint16_t)(id(s0_v).state), (uint16_t)(id(vref).state), false);
+
+  - platform: template
+    id: pot1
+    name: "pot1"
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    update_interval: 10ms
+    lambda: |-
+      return (float) mixer_math((uint16_t)(id(s1_v).state), (uint16_t)(id(vref).state), false);
+
+  - platform: template
+    id: pot2
+    name: "pot2"
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    update_interval: 10ms
+    lambda: |-
+      return (float) mixer_math((uint16_t)(id(s2_v).state), (uint16_t)(id(vref).state), false);
+
+  - platform: template
+    id: pot3
+    name: "pot3"
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    update_interval: 10ms
+    lambda: |-
+      return (float) mixer_math((uint16_t)(id(s3_v).state), (uint16_t)(id(vref).state), false);
+
+  - platform: template
+    id: pot4
+    name: "pot4"
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    update_interval: 10ms
+    lambda: |-
+      return (float) mixer_math((uint16_t)(id(s4_v).state), (uint16_t)(id(vref).state), false);
+
+  - platform: template
+    id: pot5
+    name: "pot5"
+    
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    update_interval: 10ms
+    lambda: |-
+      return (float) mixer_math((uint16_t)(id(s5_v).state), (uint16_t)(id(vref).state), false);
+
+globals:
+  - id: sw0_state
+    type: bool
+    restore_value: yes
+    initial_value: "false"
+  - id: sw1_state
+    type: bool
+    restore_value: yes
+    initial_value: "false"
+  - id: sw2_state
+    type: bool
+    restore_value: yes
+    initial_value: "false"
+  - id: sw3_state
+    type: bool
+    restore_value: yes
+    initial_value: "false"
+  - id: sw4_state
+    type: bool
+    restore_value: yes
+    initial_value: "false"
+  - id: sw5_state
+    type: bool
+    restore_value: yes
+    initial_value: "false"
+    
+binary_sensor:
+  - platform: gpio
+    id: sw0_input
+    pin:
+      number: GPIO9
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 30ms
+      - delayed_off: 30ms
+    on_press:
+      - lambda: |-
+          id(sw0_state) = !id(sw0_state);
+          id(sw0).publish_state(id(sw0_state));
+  - platform: gpio
+    id: sw1_input
+    pin:
+      number: GPIO10
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 30ms
+      - delayed_off: 30ms
+    on_press:
+      - lambda: |-
+          id(sw0_state) = !id(sw0_state);
+          id(sw0).publish_state(id(sw0_state));
+  - platform: gpio
+    id: sw2_input
+    pin:
+      number: GPIO11
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 30ms
+      - delayed_off: 30ms
+    on_press:
+      - lambda: |-
+          id(sw0_state) = !id(sw0_state);
+          id(sw0).publish_state(id(sw0_state));
+  - platform: gpio
+    id: sw3_input
+    pin:
+      number: GPIO12
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 30ms
+      - delayed_off: 30ms
+    on_press:
+      - lambda: |-
+          id(sw0_state) = !id(sw0_state);
+          id(sw0).publish_state(id(sw0_state));
+  - platform: gpio
+    id: sw4_input
+    pin:
+      number: GPIO13
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 30ms
+      - delayed_off: 30ms
+    on_press:
+      - lambda: |-
+          id(sw0_state) = !id(sw0_state);
+          id(sw0).publish_state(id(sw0_state));
+  - platform: gpio
+    id: sw5_input
+    pin:
+      number: GPIO14
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 30ms
+      - delayed_off: 30ms
+    on_press:
+      - lambda: |-
+          id(sw0_state) = !id(sw0_state);
+          id(sw0).publish_state(id(sw0_state));
+
+
+  - platform: template
+    id: sw0
+    name: "sw0"
+    device_class: power
+    lambda: |-
+      return id(sw0_state);
+  - platform: template
+    id: sw1
+    name: "sw1"
+    device_class: power
+    lambda: |-
+      return id(sw1_state);
+  - platform: template
+    id: sw2
+    name: "sw2"
+    device_class: power
+    lambda: |-
+      return id(sw2_state);
+  - platform: template
+    id: sw3
+    name: "sw3"
+    device_class: power
+    lambda: |-
+      return id(sw3_state);
+  - platform: template
+    id: sw4
+    name: "sw4"
+    device_class: power
+    lambda: |-
+      return id(sw4_state);
+  - platform: template
+    id: sw5
+    name: "sw5"
+    device_class: power
+    lambda: |-
+      return id(sw5_state);
