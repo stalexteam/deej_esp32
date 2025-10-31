@@ -42,10 +42,6 @@ esphome/
   (desolder the **side pins** on the potentiometers before mounting)
 
 
-```
-esphome/
-```
-
 ---
 
 ## 🔧 STL/Assembly
