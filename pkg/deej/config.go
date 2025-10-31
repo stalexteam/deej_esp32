@@ -16,13 +16,15 @@ import (
 // CanonicalConfig provides application-wide access to configuration fields,
 // as well as loading/file watching logic for deej's configuration file
 type CanonicalConfig struct {
-	SliderMapping *sliderMap
+	SliderMapping   *sliderMap
+	SwitchesMapping *switchMap
 
 	ConnectionInfo struct {
 		URL string
 	}
 
-	InvertSliders bool
+	InvertSliders  bool
+	InvertSwitches bool
 
 	logger             *zap.SugaredLogger
 	notifier           Notifier
@@ -45,9 +47,13 @@ const (
 
 	configType = "yaml"
 
-	configKeySliderMapping = "slider_mapping"
-	configKeyInvertSliders = "invert_sliders"
-	configKeyURL           = "URL"
+	configKeySliderMapping   = "slider_mapping"
+	configKeySwitchesMapping = "switches_mapping"
+
+	configKeyInvertSliders  = "invert_sliders"
+	configKeyInvertSwitches = "invert_switches"
+
+	configKeyURL = "URL"
 
 	defaultURL = "http://mix.local/events"
 )
@@ -58,7 +64,12 @@ var internalConfigPath = path.Join(".", logDirectory)
 var defaultSliderMapping = func() *sliderMap {
 	emptyMap := newSliderMap()
 	emptyMap.set(0, []string{masterSessionName})
+	return emptyMap
+}()
 
+// by analogy for switches
+var defaultSwitchesMapping = func() *switchMap {
+	emptyMap := newSwitchMap()
 	return emptyMap
 }()
 
@@ -80,7 +91,9 @@ func NewConfig(logger *zap.SugaredLogger, notifier Notifier) (*CanonicalConfig, 
 	userConfig.AddConfigPath(userConfigPath)
 
 	userConfig.SetDefault(configKeySliderMapping, map[string][]string{})
+	userConfig.SetDefault(configKeySwitchesMapping, map[string][]string{})
 	userConfig.SetDefault(configKeyInvertSliders, false)
+	userConfig.SetDefault(configKeyInvertSwitches, false)
 	userConfig.SetDefault(configKeyURL, defaultURL)
 
 	internalConfig := viper.New()
@@ -100,36 +113,28 @@ func NewConfig(logger *zap.SugaredLogger, notifier Notifier) (*CanonicalConfig, 
 func (cc *CanonicalConfig) Load() error {
 	cc.logger.Debugw("Loading config", "path", userConfigFilepath)
 
-	// make sure it exists
 	if !util.FileExists(userConfigFilepath) {
 		cc.logger.Warnw("Config file not found", "path", userConfigFilepath)
 		cc.notifier.Notify("Can't find configuration!",
 			fmt.Sprintf("%s must be in the same directory as deej. Please re-launch", userConfigFilepath))
-
 		return fmt.Errorf("config file doesn't exist: %s", userConfigFilepath)
 	}
 
-	// load the user config
 	if err := cc.userConfig.ReadInConfig(); err != nil {
 		cc.logger.Warnw("Viper failed to read user config", "error", err)
-
-		// if the error is yaml-format-related, show a sensible error. otherwise, show 'em to the logs
 		if strings.Contains(err.Error(), "yaml:") {
 			cc.notifier.Notify("Invalid configuration!",
 				fmt.Sprintf("Please make sure %s is in a valid YAML format.", userConfigFilepath))
 		} else {
 			cc.notifier.Notify("Error loading configuration!", "Please check deej's logs for more details.")
 		}
-
 		return fmt.Errorf("read user config: %w", err)
 	}
 
-	// load the internal config - this doesn't have to exist, so it can error
 	if err := cc.internalConfig.ReadInConfig(); err != nil {
 		cc.logger.Debugw("Viper failed to read internal config", "error", err, "reminder", "this is fine")
 	}
 
-	// canonize the configuration with viper's helpers
 	if err := cc.populateFromVipers(); err != nil {
 		cc.logger.Warnw("Failed to populate config fields", "error", err)
 		return fmt.Errorf("populate config fields: %w", err)
@@ -138,8 +143,11 @@ func (cc *CanonicalConfig) Load() error {
 	cc.logger.Info("Loaded config successfully")
 	cc.logger.Infow("Config values",
 		"sliderMapping", cc.SliderMapping,
+		"switchesMapping", cc.SwitchesMapping,
 		"connectionInfo", cc.ConnectionInfo,
-		"invertSliders", cc.InvertSliders)
+		"invertSliders", cc.InvertSliders,
+		"invertSwitches", cc.InvertSwitches,
+	)
 
 	return nil
 }
@@ -216,10 +224,15 @@ func (cc *CanonicalConfig) populateFromVipers() error {
 		cc.internalConfig.GetStringMapStringSlice(configKeySliderMapping),
 	)
 
-	// get the rest of the config fields - viper saves us a lot of effort here
+	cc.SwitchesMapping = switchMapFromConfigs(
+		cc.userConfig.GetStringMapStringSlice(configKeySwitchesMapping),
+		cc.internalConfig.GetStringMapStringSlice(configKeySwitchesMapping),
+	)
+
 	cc.ConnectionInfo.URL = cc.userConfig.GetString(configKeyURL)
 
 	cc.InvertSliders = cc.userConfig.GetBool(configKeyInvertSliders)
+	cc.InvertSwitches = cc.userConfig.GetBool(configKeyInvertSwitches)
 
 	cc.logger.Debug("Populated config fields from vipers")
 

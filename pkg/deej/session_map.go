@@ -81,6 +81,7 @@ func (m *sessionMap) initialize() error {
 
 	m.setupOnConfigReload()
 	m.setupOnSliderMove()
+	m.setupOnSwitchEvent()
 
 	return nil
 }
@@ -144,6 +145,19 @@ func (m *sessionMap) setupOnSliderMove() {
 			select {
 			case event := <-sliderEventsChannel:
 				m.handleSliderMoveEvent(event)
+			}
+		}
+	}()
+}
+
+func (m *sessionMap) setupOnSwitchEvent() {
+	switchEventsChannel := m.deej.sse.SubscribeToSwitchEvents()
+
+	go func() {
+		for {
+			select {
+			case event := <-switchEventsChannel:
+				m.handleSwitchEvent(event)
 			}
 		}
 	}()
@@ -267,6 +281,57 @@ func (m *sessionMap) handleSliderMoveEvent(event SliderMoveEvent) {
 		// performance: the reason that forcing a refresh here is okay is that we'll only get here
 		// when a session's SetVolume call errored, such as in the case of a stale master session
 		// (or another, more catastrophic failure happens)
+		m.refreshSessions(true)
+	}
+}
+
+func (m *sessionMap) handleSwitchEvent(event SwitchEvent) {
+
+	if m.lastSessionRefresh.Add(maxTimeBetweenSessionRefreshes).Before(time.Now()) {
+		m.logger.Debug("Stale session map detected on switch event, refreshing")
+		m.refreshSessions(true)
+	}
+
+	targets, ok := m.deej.config.SwitchesMapping.get(event.SwitchID)
+	if !ok {
+		return
+	}
+
+	state := event.State
+
+	if m.deej.config.InvertSwitches {
+		state = !state
+	}
+
+	targetFound := false
+	actionFailed := false
+
+	for _, target := range targets {
+		resolvedTargets := m.resolveTarget(target)
+
+		for _, resolvedTarget := range resolvedTargets {
+			sessions, ok := m.get(resolvedTarget)
+			if !ok {
+				continue
+			}
+
+			targetFound = true
+
+			for _, session := range sessions {
+				currentMute := session.GetMute()
+				if currentMute != state {
+					if err := session.SetMute(state, false); err != nil {
+						m.logger.Warnw("Failed to set mute state for target session", "error", err)
+						actionFailed = true
+					}
+				}
+			}
+		}
+	}
+
+	if !targetFound {
+		m.refreshSessions(false)
+	} else if actionFailed {
 		m.refreshSessions(true)
 	}
 }

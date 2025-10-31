@@ -31,15 +31,20 @@ type SseIO struct {
 	lastKnownNumSliders int
 
 	sliderMoveConsumers []chan SliderMoveEvent
+	switchConsumers     []chan SwitchEvent
 
 	idPattern *regexp.Regexp
-	lastURL   string
 }
 
 // SliderMoveEvent represents a single slider move captured by deej
 type SliderMoveEvent struct {
 	SliderID     int
 	PercentValue float32
+}
+
+type SwitchEvent struct {
+	SwitchID int
+	State    bool
 }
 
 // NewSseIO creates an SseIO instance that uses the provided deej instance's connection info
@@ -89,7 +94,6 @@ func (s *SseIO) Start() error {
 
 	s.logger.Debugw("Attempting SSE connection", "url", url)
 	s.connected = true
-	s.lastURL = url
 
 	// read events or await a stop
 	go func() {
@@ -157,6 +161,12 @@ func (s *SseIO) SubscribeToSliderMoveEvents() chan SliderMoveEvent {
 	return ch
 }
 
+func (s *SseIO) SubscribeToSwitchEvents() chan SwitchEvent {
+	ch := make(chan SwitchEvent)
+	s.switchConsumers = append(s.switchConsumers, ch)
+	return ch
+}
+
 func (s *SseIO) setupOnConfigReload() {
 	configReloadedChannel := s.deej.config.SubscribeToChanges()
 	const stopDelay = 50 * time.Millisecond
@@ -165,9 +175,9 @@ func (s *SseIO) setupOnConfigReload() {
 		for {
 			select {
 			case <-configReloadedChannel:
-				// restart in case when url was changed.
-				if s.deej.config.ConnectionInfo.URL != s.lastURL {
-					s.logger.Info("Detected change in connection parameters, attempting to renew connection")
+				{
+					// restart in case when config was changed.
+					s.logger.Info("Detected changes in cofig, renew connection to retreive all values.")
 					s.Stop()
 					<-time.After(stopDelay)
 					if err := s.Start(); err != nil {
@@ -186,53 +196,79 @@ type sseStatePayload struct {
 	Value *int   `json:"value"` // optional in theory; ignore event if nil
 }
 
+var (
+	potPattern = regexp.MustCompile(`^sensor-pot(\d+)$`)
+	swPattern  = regexp.MustCompile(`^binary_sensor-sw(\d+)$`)
+)
+
 func (s *SseIO) handleStateEvent(logger *zap.SugaredLogger, data []byte) {
-	// Parse minimal JSON
-	var payload sseStatePayload
-	if err := json.Unmarshal(data, &payload); err != nil || payload.Value == nil {
-		// malformed or no value — ignore
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
 		return
 	}
 
-	// Match sensor-(\d+)
-	m := s.idPattern.FindStringSubmatch(payload.ID)
-	if len(m) != 2 {
-		return
-	}
-	idx, err := strconv.Atoi(m[1])
-	if err != nil || idx < 0 {
+	id, _ := raw["id"].(string)
+	if id == "" {
 		return
 	}
 
-	// track max number of sliders for logs/diagnostics
-	if idx+1 > s.lastKnownNumSliders {
-		s.lastKnownNumSliders = idx + 1
-		logger.Infow("Detected sliders", "amount", s.lastKnownNumSliders)
+	// ---- POTENTIOMETER
+	if m := potPattern.FindStringSubmatch(id); len(m) == 2 {
+		val, ok := raw["value"].(float64)
+		if !ok {
+			return
+		}
+
+		idx, _ := strconv.Atoi(m[1])
+		n := float32(val) / 100.0
+		if n < 0 {
+			n = 0
+		} else if n > 1 {
+			n = 1
+		}
+		if s.deej.config.InvertSliders {
+			n = 1 - n
+		}
+
+		move := SliderMoveEvent{
+			SliderID:     idx,
+			PercentValue: n,
+		}
+
+		if s.deej.Verbose() {
+			logger.Debugw("Slider moved", "event", move)
+		}
+
+		for _, c := range s.sliderMoveConsumers {
+			c <- move
+		}
+		return
 	}
 
-	// convert % to 0..1
-	n := float32(*payload.Value) / 100.0
-	if n < 0 {
-		n = 0
-	} else if n > 1 {
-		n = 1
-	}
+	// ---- SWITCH
+	if m := swPattern.FindStringSubmatch(id); len(m) == 2 {
+		var state bool
+		if v, ok := raw["value"].(bool); ok {
+			state = v
+		} else if sStr, ok := raw["state"].(string); ok {
+			state = strings.ToUpper(sStr) == "ON"
+		} else {
+			return
+		}
 
-	// invert if needed
-	if s.deej.config.InvertSliders {
-		n = 1 - n
-	}
+		idx, _ := strconv.Atoi(m[1])
+		sw := SwitchEvent{
+			SwitchID: idx,
+			State:    state,
+		}
 
-	move := SliderMoveEvent{
-		SliderID:     idx,
-		PercentValue: n,
-	}
+		if s.deej.Verbose() {
+			logger.Debugw("Switch changed", "event", sw)
+		}
 
-	if s.deej.Verbose() {
-		logger.Debugw("Slider moved", "event", move)
-	}
-
-	for _, consumer := range s.sliderMoveConsumers {
-		consumer <- move
+		for _, c := range s.switchConsumers {
+			c <- sw
+		}
+		return
 	}
 }

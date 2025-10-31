@@ -58,7 +58,7 @@ sensor:
     internal: true
     pin: GPIO8
     attenuation: 6db
-    update_interval: 1ms
+    update_interval: 10ms
     samples: 128
     raw: true
 
@@ -67,7 +67,7 @@ sensor:
     internal: true
     pin: GPIO1
     attenuation: 6db
-    update_interval: 1ms
+    update_interval: 10ms
     samples: 128
     raw: true
 
@@ -76,7 +76,7 @@ sensor:
     internal: true
     pin: GPIO2
     attenuation: 6db
-    update_interval: 1ms
+    update_interval: 10ms
     samples: 128
     raw: true
 
@@ -85,7 +85,7 @@ sensor:
     internal: true
     pin: GPIO4
     attenuation: 6db
-    update_interval: 1ms
+    update_interval: 10ms
     samples: 128
     raw: true
 
@@ -94,7 +94,7 @@ sensor:
     internal: true
     pin: GPIO5
     attenuation: 6db
-    update_interval: 1ms
+    update_interval: 10ms
     samples: 128
     raw: true
 
@@ -103,7 +103,7 @@ sensor:
     internal: true
     pin: GPIO6
     attenuation: 6db
-    update_interval: 1ms
+    update_interval: 10ms
     samples: 128
     raw: true
 
@@ -112,61 +112,128 @@ sensor:
     internal: true
     pin: GPIO7
     attenuation: 6db
-    update_interval: 1ms
+    update_interval: 10ms
     samples: 128
     raw: true
 
   - platform: template
     id: pot0
-    name: "0"
+    name: "pot0"
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    update_interval: 1ms
+    update_interval: 10ms
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s0_v).state), (uint16_t)(id(vref).state), false);
 
   - platform: template
     id: pot1
-    name: "1"
+    name: "pot1"
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    update_interval: 1ms
+    update_interval: 10ms
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s1_v).state), (uint16_t)(id(vref).state), false);
 
   - platform: template
     id: pot2
-    name: "2"
+    name: "pot2"
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    update_interval: 1ms
+    update_interval: 10ms
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s2_v).state), (uint16_t)(id(vref).state), false);
 
   - platform: template
     id: pot3
-    name: "3"
+    name: "pot3"
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    update_interval: 1ms
+    update_interval: 10ms
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s3_v).state), (uint16_t)(id(vref).state), false);
 
   - platform: template
     id: pot4
-    name: "4"
+    name: "pot4"
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    update_interval: 1ms
+    update_interval: 10ms
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s4_v).state), (uint16_t)(id(vref).state), false);
 
   - platform: template
     id: pot5
-    name: "5"
+    name: "pot5"
     
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    update_interval: 1ms
+    update_interval: 10ms
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s5_v).state), (uint16_t)(id(vref).state), false);
+
+binary_sensor:
+  - platform: gpio
+    id: sw0
+    name: "sw0"
+    pin:
+      number: GPIO9
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 50ms
+
+  - platform: gpio
+    id: sw1
+    name: "sw1"
+    pin:
+      number: GPIO10
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 50ms
+
+  - platform: gpio
+    id: sw2
+    name: "sw2"
+    pin:
+      number: GPIO11
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 50ms
+
+  - platform: gpio
+    id: sw3
+    name: "sw3"
+    pin:
+      number: GPIO12
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 50ms
+
+  - platform: gpio
+    id: sw4
+    name: "sw4"
+    pin:
+      number: GPIO13
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 50ms
+
+  - platform: gpio
+    id: sw5
+    name: "sw5"
+    pin:
+      number: GPIO14
+      mode:
+        input: true
+        pullup: true
+    filters:
+      - delayed_on: 50ms

@@ -8,6 +8,7 @@
 # important: slider indexes start at 0, regardless of which analog pins you're using!
 
 #example mapping:
+
 #slider_mapping:
 #  0: master
 #  1: chrome.exe
@@ -17,17 +18,36 @@
 #    - rocketleague.exe
 #  4: discord.exe
 #  5: helloworld.exe
-  
+
+#switches_mapping:
+#  0: JBL TUNE770NC Hands-Free AG Audio
+#  1:
+#  2:
+#  3:
+#  4:
+#  5: 
+    
 slider_mapping:
-  0:
+  0: 
   1:
   2:
-  3: chrome.exe
+  3:
   4:
-  5: 
+  5:
 
 # set this to true if you want the controls inverted (i.e. top is 0%, bottom is 100%)
 invert_sliders: false
+
+# switches used to mute/unmute input/output.
+switches_mapping:
+  0: 
+  1:
+  2:
+  3:
+  4:
+  5: 
+
+invert_switches: false
 
 # esp event source location
 URL: http://mix.local/events
