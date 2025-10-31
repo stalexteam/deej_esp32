@@ -25,6 +25,7 @@ There are ready-to-use Docker containers and plenty of guides available online â
 The device configuration (`.yaml`) and the corresponding header file (`.h`)
 are located in this repository under:
 
+
 ```
 esphome/
 ```
@@ -41,6 +42,7 @@ esphome/
 
   (desolder the **side pins** on the potentiometers before mounting)
 
+  You can, at your discretion, freely change the number of potentiometers or switches, adjusting the YAML to suit your situation.
 
 ---
 
