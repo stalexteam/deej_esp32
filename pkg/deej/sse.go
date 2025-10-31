@@ -97,14 +97,14 @@ func (s *SseIO) Start() error {
 
 	s.es.OnDisconnect = func(url string, err error) {
 		if err != nil {
-			s.logger.Warnw("Device disconnected", "url", url, "error", err.Error())
+			s.logger.Infow("Device disconnected", "url", url, "error", err.Error())
 		} else {
 			s.logger.Infow("Device disconnected gracefully", "url", url)
 		}
 	}
 
 	s.es.OnError = func(url string, err error) {
-		s.logger.Warnw("Device seems offline or not responding", "url", url, "error", err.Error())
+		s.logger.Infow("Device seems offline or not responding", "url", url, "error", err.Error())
 	}
 
 	s.connected = true
@@ -187,7 +187,7 @@ func (s *SseIO) setupOnConfigReload() {
 					s.Stop()
 					<-time.After(stopDelay)
 					if err := s.Start(); err != nil {
-						s.logger.Warnw("Failed to renew connection after parameter change", "error", err)
+						s.logger.Infow("Failed to renew connection after parameter change", "error", err)
 					} else {
 						s.logger.Debug("Renewed connection successfully")
 					}
