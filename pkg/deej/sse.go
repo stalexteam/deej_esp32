@@ -11,7 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bernerdschaefer/eventsource" // go get github.com/bernerdschaefer/eventsource
+	// go get github.com/stalexteam/eventsource_go
+	// or
+	// go get github.com/stalexteam/eventsource_go@8a9c6dbf946fabf97207f30804983e35e71a2434
+	eventsource "github.com/stalexteam/eventsource_go"
 	"go.uber.org/zap"
 )
 
@@ -72,7 +75,7 @@ func NewSseIO(deej *Deej, logger *zap.SugaredLogger) (*SseIO, error) {
 // Start attempts to connect to the SSE endpoint
 func (s *SseIO) Start() error {
 	if s.connected {
-		s.logger.Warn("Already connected, can't start another without closing first")
+		s.logger.Info("Already connected, can't start another without closing first")
 		return errors.New("sse: connection already active")
 	}
 
@@ -81,51 +84,54 @@ func (s *SseIO) Start() error {
 		return fmt.Errorf("sse: empty ConnectionInfo.URL")
 	}
 
-	// build cancellable request
-	var err error
 	s.ctx, s.cancel = context.WithCancel(context.Background())
-	s.req, err = http.NewRequestWithContext(s.ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return fmt.Errorf("sse: build request: %w", err)
+	s.req, _ = http.NewRequestWithContext(s.ctx, http.MethodGet, url, nil)
+
+	s.es = eventsource.New(s.req, 3*time.Second)
+	s.es.ReadTimeout = 12 * time.Second // esphome ping each 10 sec, so, timeout = 12 is ok.
+
+	// Callbacks
+	s.es.OnConnect = func(url string) {
+		s.logger.Infow("Connected to SSE", "url", url)
 	}
 
-	// eventsource client (reconnects internally based on Retry field)
-	s.es = eventsource.New(s.req, 3*time.Second)
+	s.es.OnDisconnect = func(url string, err error) {
+		if err != nil {
+			s.logger.Warnw("Device disconnected", "url", url, "error", err.Error())
+		} else {
+			s.logger.Infow("Device disconnected gracefully", "url", url)
+		}
+	}
 
-	s.logger.Debugw("Attempting SSE connection", "url", url)
+	s.es.OnError = func(url string, err error) {
+		s.logger.Warnw("Device seems offline or not responding", "url", url, "error", err.Error())
+	}
+
 	s.connected = true
 
-	// read events or await a stop
 	go func() {
-		namedLogger := s.logger.Named("eventstream")
-		namedLogger.Infow("Connected", "url", url)
+		logger := s.logger.Named("eventstream")
+		logger.Infow("Starting SSE read loop", "url", url)
 
 		for {
 			select {
 			case <-s.stopChannel:
-				s.close(namedLogger)
+				s.close(logger)
 				return
 			default:
-				// blocking read of next SSE event
 				ev, err := s.es.Read()
 				if err != nil {
-					if s.deej.Verbose() {
-						namedLogger.Warnw("Failed to read SSE event", "error", err)
-					}
-					// Attempt to reconnect.
 					continue
 				}
 
-				// Non-state events (e.g., ping) = health signal — ignore content
 				if ev.Type != "state" {
 					if s.deej.Verbose() {
-						namedLogger.Debugw("Non-state event", "type", ev.Type, "id", ev.ID)
+						logger.Debugw("Non-state event received", "type", ev.Type, "id", ev.ID)
 					}
 					continue
 				}
 
-				// Handle state
-				s.handleStateEvent(namedLogger, ev.Data)
+				s.handleStateEvent(logger, ev.Data)
 			}
 		}
 	}()

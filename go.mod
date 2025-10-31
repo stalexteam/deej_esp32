@@ -3,7 +3,6 @@ module github.com/omriharel/deej
 go 1.14
 
 require (
-	github.com/bernerdschaefer/eventsource v0.0.0-20130606115634-220e99a79763 // indirect
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gen2brain/beeep v0.0.0-20200420150314-13046a26d502
 	github.com/getlantern/ops v0.0.0-20200403153110-8476b16edcd6 // indirect
@@ -17,6 +16,7 @@ require (
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/moutend/go-wca v0.1.2-0.20190422112502-0fa027b3d89a
 	github.com/spf13/viper v1.7.1
+	github.com/stalexteam/eventsource_go v0.0.0-20251031103142-8a9c6dbf946f // indirect
 	github.com/thoas/go-funk v0.7.0
 	go.uber.org/zap v1.15.0
 	golang.org/x/sys v0.0.0-20200501145240-bc7a7d42d5c3 // indirect

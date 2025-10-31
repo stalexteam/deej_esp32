@@ -103,12 +103,12 @@ func (s *paSession) GetVolume() float32 {
 		s.logger.Warnw("Failed to get session volume", "error", err)
 	}
 
-	level := parseChannelVolumes(reply.ChannelVolumes)
-
-	return level
+	return parseChannelVolumes(reply.ChannelVolumes)
 }
 
 func (s *paSession) SetVolume(v float32) error {
+	var WasMuted bool = s.GetMute()
+
 	volumes := createChannelVolumes(s.sinkInputChannels, v)
 	request := proto.SetSinkInputVolume{
 		SinkInputIndex: s.sinkInputIndex,
@@ -120,8 +120,40 @@ func (s *paSession) SetVolume(v float32) error {
 		return fmt.Errorf("adjust session volume: %w", err)
 	}
 
-	s.logger.Debugw("Adjusting session volume", "to", fmt.Sprintf("%.2f", v))
+	if WasMuted {
+		s.SetMute(true, true)
+	}
 
+	s.logger.Debugw("Adjusting session volume", "to", fmt.Sprintf("%.2f", v))
+	return nil
+}
+
+func (s *paSession) GetMute() bool {
+	request := proto.GetSinkInputInfo{
+		SinkInputIndex: s.sinkInputIndex,
+	}
+	reply := proto.GetSinkInputInfoReply{}
+
+	if err := s.client.Request(&request, &reply); err != nil {
+		s.logger.Warnw("Failed to get mute state", "error", err)
+		return false
+	}
+	return reply.Muted
+}
+
+func (s *paSession) SetMute(v bool, silent bool) error {
+	request := proto.SetSinkInputMute{
+		SinkInputIndex: s.sinkInputIndex,
+		Mute:           v,
+	}
+	if err := s.client.Request(&request, nil); err != nil {
+		s.logger.Warnw("Failed to set mute state", "error", err)
+		return fmt.Errorf("set mute: %w", err)
+	}
+
+	if !silent {
+		s.logger.Debugw("Setting session mute state", "muted", v)
+	}
 	return nil
 }
 
@@ -166,9 +198,10 @@ func (s *masterSession) GetVolume() float32 {
 }
 
 func (s *masterSession) SetVolume(v float32) error {
-	var request proto.RequestArgs
+	var WasMuted bool = s.GetMute()
 
 	volumes := createChannelVolumes(s.streamChannels, v)
+	var request proto.RequestArgs
 
 	if s.isOutput {
 		request = &proto.SetSinkVolume{
@@ -183,15 +216,60 @@ func (s *masterSession) SetVolume(v float32) error {
 	}
 
 	if err := s.client.Request(request, nil); err != nil {
-		s.logger.Warnw("Failed to set session volume",
-			"error", err,
-			"volume", v)
-
+		s.logger.Warnw("Failed to set master volume", "error", err, "volume", v)
 		return fmt.Errorf("adjust session volume: %w", err)
 	}
 
-	s.logger.Debugw("Adjusting session volume", "to", fmt.Sprintf("%.2f", v))
+	if WasMuted {
+		s.SetMute(true, true)
+	}
 
+	s.logger.Debugw("Adjusting master volume", "to", fmt.Sprintf("%.2f", v))
+	return nil
+}
+
+func (s *masterSession) GetMute() bool {
+	if s.isOutput {
+		request := proto.GetSinkInfo{SinkIndex: s.streamIndex}
+		reply := proto.GetSinkInfoReply{}
+		if err := s.client.Request(&request, &reply); err != nil {
+			s.logger.Warnw("Failed to get mute state", "error", err)
+			return false
+		}
+		return reply.Muted
+	}
+
+	request := proto.GetSourceInfo{SourceIndex: s.streamIndex}
+	reply := proto.GetSourceInfoReply{}
+	if err := s.client.Request(&request, &reply); err != nil {
+		s.logger.Warnw("Failed to get mute state", "error", err)
+		return false
+	}
+	return reply.Muted
+}
+
+func (s *masterSession) SetMute(v bool, silent bool) error {
+	var request proto.RequestArgs
+	if s.isOutput {
+		request = &proto.SetSinkMute{
+			SinkIndex: s.streamIndex,
+			Mute:      v,
+		}
+	} else {
+		request = &proto.SetSourceMute{
+			SourceIndex: s.streamIndex,
+			Mute:        v,
+		}
+	}
+
+	if err := s.client.Request(request, nil); err != nil {
+		s.logger.Warnw("Failed to set mute", "error", err)
+		return fmt.Errorf("set mute: %w", err)
+	}
+
+	if !silent {
+		s.logger.Debugw("Setting master mute state", "muted", v)
+	}
 	return nil
 }
 
