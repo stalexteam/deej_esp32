@@ -37,9 +37,10 @@ esphome/
 | --- | -------------------- | ------------------------------------------------------------------- |
 | 6×  | Potentiometer Module | [AliExpress](https://www.aliexpress.com/item/1005006733220962.html) |
 | 1×  | ESP32 Board          | [AliExpress](https://www.aliexpress.com/item/1005009640243412.html) |
+| 6×  | Switch               | Any kind of latching button or switch. (optionally)                 |
 
   (desolder the **side pins** on the potentiometers before mounting)
-  
+
 
 ```
 esphome/
