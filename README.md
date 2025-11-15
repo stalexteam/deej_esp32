@@ -32,7 +32,7 @@ esphome/
 
 * mix_momentary.yaml - If you wish to use momentary switches to mute the sound. 
 * mix_latching.yaml - for latching switches.
-* **If you don't need the mute button functionality**, we recommend using mix_latching.yaml and removing the binary_sensor block from it.
+* **If you don't need the mute button functionality**, use mix_latching.yaml (remove the binary_sensor block from yaml).
 
 ---
 
