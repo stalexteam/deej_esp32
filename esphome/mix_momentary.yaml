@@ -1,6 +1,7 @@
 substitutions:
   update_interval: 10ms
   debounce_interval: 30ms
+  min_publish_interval: 100ms
   adc_attenuation: 12db #options: 6db, 12db. depends on max possible voltage on ADC pins.
   adc_samples: 128
 
@@ -168,6 +169,9 @@ sensor:
     update_interval: ${update_interval}
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s0_v).state), (uint16_t)(id(vref).state), false);
+    filters:
+      - delta: 1
+      - throttle_average: $(min_publish_interval)
 
   - platform: template
     id: pot1
@@ -177,6 +181,9 @@ sensor:
     update_interval: ${update_interval}
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s1_v).state), (uint16_t)(id(vref).state), false);
+    filters:
+      - delta: 1
+      - throttle_average: $(min_publish_interval)
 
   - platform: template
     id: pot2
@@ -186,6 +193,9 @@ sensor:
     update_interval: ${update_interval}
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s2_v).state), (uint16_t)(id(vref).state), false);
+    filters:
+      - delta: 1
+      - throttle_average: $(min_publish_interval)
 
   - platform: template
     id: pot3
@@ -195,6 +205,9 @@ sensor:
     update_interval: ${update_interval}
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s3_v).state), (uint16_t)(id(vref).state), false);
+    filters:
+      - delta: 1
+      - throttle_average: $(min_publish_interval)
 
   - platform: template
     id: pot4
@@ -204,6 +217,9 @@ sensor:
     update_interval: ${update_interval}
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s4_v).state), (uint16_t)(id(vref).state), false);
+    filters:
+      - delta: 1
+      - throttle_average: $(min_publish_interval)
 
   - platform: template
     id: pot5
@@ -214,6 +230,9 @@ sensor:
     update_interval: ${update_interval}
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s5_v).state), (uint16_t)(id(vref).state), false);
+    filters:
+      - delta: 1
+      - throttle_average: $(min_publish_interval)
 
 globals:
   - id: sw0_state

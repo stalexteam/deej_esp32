@@ -168,6 +168,10 @@ sensor:
     update_interval: ${update_interval}
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s0_v).state), (uint16_t)(id(vref).state), false);
+    filters:
+      - delta: 1
+      - throttle_average: 40ms
+
 
   - platform: template
     id: pot1
@@ -177,6 +181,9 @@ sensor:
     update_interval: ${update_interval}
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s1_v).state), (uint16_t)(id(vref).state), false);
+    filters:
+      - delta: 1
+      - throttle_average: 40ms
 
   - platform: template
     id: pot2
@@ -186,6 +193,9 @@ sensor:
     update_interval: ${update_interval}
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s2_v).state), (uint16_t)(id(vref).state), false);
+    filters:
+      - delta: 1
+      - throttle_average: 40ms
 
   - platform: template
     id: pot3
@@ -195,6 +205,9 @@ sensor:
     update_interval: ${update_interval}
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s3_v).state), (uint16_t)(id(vref).state), false);
+    filters:
+      - delta: 1
+      - throttle_average: 40ms
 
   - platform: template
     id: pot4
@@ -204,16 +217,21 @@ sensor:
     update_interval: ${update_interval}
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s4_v).state), (uint16_t)(id(vref).state), false);
+    filters:
+      - delta: 1
+      - throttle_average: 40ms
 
   - platform: template
     id: pot5
     name: "pot5"
-    
     unit_of_measurement: "%"
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s5_v).state), (uint16_t)(id(vref).state), false);
+    filters:
+      - delta: 1
+      - throttle_average: 40ms
 
 binary_sensor:
   - platform: gpio
