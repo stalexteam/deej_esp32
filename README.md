@@ -21,6 +21,7 @@ As a result:
 
 To build and flash the ESP32, you’ll need **ESPHome**.
 There are ready-to-use Docker containers and plenty of guides available online — setting it up shouldn’t be a problem.
+It's a bit tricky because you'll need to put a header(.h) file to the config folder, but I think you can handle it.
 
 The device configuration (`.yaml`) and the corresponding header file (`.h`)
 are located in this repository under:
@@ -33,6 +34,16 @@ esphome/
 * mix_momentary.yaml - If you wish to use momentary switches to mute the sound. 
 * mix_latching.yaml - for latching switches.
 * **If you don't need the mute button functionality**, use mix_latching.yaml (remove the binary_sensor block from yaml).
+
+extra: 
+* you can use empty wifi and improv_serial sections instead existing wifi and captive_portal sections, and, after flashing use https://web.esphome.io/ to configue wifi connection any time you want w/o reflashing.
+* factory reset button (erase wifi/other settings) can be implemented in this way: 
+```
+button:
+  - platform: factory_reset
+    icon: "mdi:restart-alert"
+    name: Factory reset.
+```
 
 ---
 
