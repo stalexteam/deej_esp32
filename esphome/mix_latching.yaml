@@ -1,3 +1,9 @@
+substitutions:
+  update_interval: 10ms
+  debounce_interval: 30ms
+  adc_attenuation: 12db #options: 6db, 12db. depends on max possible voltage on ADC pins.
+  adc_samples: 128
+
 esphome:
   name: mix
   friendly_name: Mixer
@@ -25,95 +31,133 @@ psram:
   mode: octal
   speed: 80MHz
 
-# Enable logging
-logger:
-  level: INFO
-
-# Enable Home Assistant API
-# api:
-
-ota:
-  - platform: esphome
-    id: my_ota
-    password: !secret ota_password
-
-wifi:
-  enable_rrm: true
-  fast_connect: true
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-  ap:
-    ssid: "Mixer Fallback Hotspot"
-    password: !secret fallback_password
-
-
 web_server:
   port: 80
 
-captive_portal:
+# Enable logging (required for improv_serial component)
+logger:
+  level: INFO
+
+# Optional: Enable Home Assistant API (you can use sliders/switches to control your HA devices)
+# api:
+
+# Optional: Enable OTA updates (set ota_password in secrets xml)
+#ota:
+#  - platform: esphome
+#    id: my_ota
+#    password: !secret ota_password
+
+# WiFi config. Option 1: Enable wifi (hardcoded credentials)
+#wifi:
+#  id: wifi_module
+#  enable_rrm: true
+#  fast_connect: true
+#  ssid: !secret wifi_ssid
+#  password: !secret wifi_password
+#  ap:
+#    ssid: "Mixer Fallback Hotspot"
+#    password: !secret fallback_password
+
+# Optional: Enable captive portal (fallback hotspot shoulr be configured)
+#captive_portal:
+
+# WiFi config. Option 2 (production preffered): wifi ssid and password should be configured via https://web.esphome.io/ by improv_serial (you can do it any time after flashing)
+wifi:
+  id: wifi_module
+improv_serial:
+  next_url: http://{{device_name}}/
+
+# wifi status led
+switch:
+  - platform: gpio
+    id: WiFiLed
+    internal: True
+    pin: 
+      number: GPIO48
+      inverted: True
+      mode: OUTPUT_OPEN_DRAIN
+
+interval:
+  - interval: 333ms
+    then:
+      - lambda: |-
+          if (id(wifi_module).is_connected()) { 
+            id(WiFiLed).turn_off(); 
+          } else 
+          if (id(wifi_module).has_sta()) { 
+            id(WiFiLed).toggle();
+          } else {                 
+            id(WiFiLed).turn_on(); 
+          } 
+
+# Optional: factory reset button (reset settings)
+#button:
+#  - platform: factory_reset
+#    icon: "mdi:restart-alert"
+#    name: Restart with Factory Default Settings
 
 sensor:
   - platform: adc
     id: vref
     internal: true
     pin: GPIO8
-    attenuation: 6db
-    update_interval: 10ms
-    samples: 128
+    attenuation: ${adc_attenuation}
+    update_interval: ${update_interval}
+    samples: ${adc_samples}
     raw: true
 
   - platform: adc
     id: s0_v
     internal: true
     pin: GPIO1
-    attenuation: 6db
-    update_interval: 10ms
-    samples: 128
+    attenuation: ${adc_attenuation}
+    update_interval: ${update_interval}
+    samples: ${adc_samples}
     raw: true
 
   - platform: adc
     id: s1_v
     internal: true
     pin: GPIO2
-    attenuation: 6db
-    update_interval: 10ms
-    samples: 128
+    attenuation: ${adc_attenuation}
+    update_interval: ${update_interval}
+    samples: ${adc_samples}
     raw: true
 
   - platform: adc
     id: s2_v
     internal: true
     pin: GPIO4
-    attenuation: 6db
-    update_interval: 10ms
-    samples: 128
+    attenuation: ${adc_attenuation}
+    update_interval: ${update_interval}
+    samples: ${adc_samples}
     raw: true
 
   - platform: adc
     id: s3_v
     internal: true
     pin: GPIO5
-    attenuation: 6db
-    update_interval: 10ms
-    samples: 128
+    attenuation: ${adc_attenuation}
+    update_interval: ${update_interval}
+    samples: ${adc_samples}
     raw: true
 
   - platform: adc
     id: s4_v
     internal: true
     pin: GPIO6
-    attenuation: 6db
-    update_interval: 10ms
-    samples: 128
+    attenuation: ${adc_attenuation}
+    update_interval: ${update_interval}
+    samples: ${adc_samples}
     raw: true
 
   - platform: adc
     id: s5_v
     internal: true
     pin: GPIO7
-    attenuation: 6db
-    update_interval: 10ms
-    samples: 128
+    attenuation: ${adc_attenuation}
+    update_interval: ${update_interval}
+    samples: ${adc_samples}
     raw: true
 
   - platform: template
@@ -121,7 +165,7 @@ sensor:
     name: "pot0"
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    update_interval: 10ms
+    update_interval: ${update_interval}
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s0_v).state), (uint16_t)(id(vref).state), false);
 
@@ -130,7 +174,7 @@ sensor:
     name: "pot1"
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    update_interval: 10ms
+    update_interval: ${update_interval}
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s1_v).state), (uint16_t)(id(vref).state), false);
 
@@ -139,7 +183,7 @@ sensor:
     name: "pot2"
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    update_interval: 10ms
+    update_interval: ${update_interval}
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s2_v).state), (uint16_t)(id(vref).state), false);
 
@@ -148,7 +192,7 @@ sensor:
     name: "pot3"
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    update_interval: 10ms
+    update_interval: ${update_interval}
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s3_v).state), (uint16_t)(id(vref).state), false);
 
@@ -157,7 +201,7 @@ sensor:
     name: "pot4"
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    update_interval: 10ms
+    update_interval: ${update_interval}
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s4_v).state), (uint16_t)(id(vref).state), false);
 
@@ -167,7 +211,7 @@ sensor:
     
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    update_interval: 10ms
+    update_interval: ${update_interval}
     lambda: |-
       return (float) mixer_math((uint16_t)(id(s5_v).state), (uint16_t)(id(vref).state), false);
 
@@ -181,7 +225,8 @@ binary_sensor:
         input: true
         pullup: true
     filters:
-      - delayed_on: 50ms
+      - delayed_on: ${debounce_interval}
+      - delayed_off: ${debounce_interval}
 
   - platform: gpio
     id: sw1
@@ -192,7 +237,8 @@ binary_sensor:
         input: true
         pullup: true
     filters:
-      - delayed_on: 50ms
+      - delayed_on: ${debounce_interval}
+      - delayed_off: ${debounce_interval}
 
   - platform: gpio
     id: sw2
@@ -203,7 +249,8 @@ binary_sensor:
         input: true
         pullup: true
     filters:
-      - delayed_on: 50ms
+      - delayed_on: ${debounce_interval}
+      - delayed_off: ${debounce_interval}
 
   - platform: gpio
     id: sw3
@@ -214,7 +261,8 @@ binary_sensor:
         input: true
         pullup: true
     filters:
-      - delayed_on: 50ms
+      - delayed_on: ${debounce_interval}
+      - delayed_off: ${debounce_interval}
 
   - platform: gpio
     id: sw4
@@ -225,7 +273,8 @@ binary_sensor:
         input: true
         pullup: true
     filters:
-      - delayed_on: 50ms
+      - delayed_on: ${debounce_interval}
+      - delayed_off: ${debounce_interval}
 
   - platform: gpio
     id: sw5
@@ -236,4 +285,6 @@ binary_sensor:
         input: true
         pullup: true
     filters:
-      - delayed_on: 50ms
+      - delayed_on: ${debounce_interval}
+      - delayed_off: ${debounce_interval}
+

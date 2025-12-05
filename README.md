@@ -21,9 +21,9 @@ As a result:
 
 To build and flash the ESP32, you’ll need **ESPHome**.
 There are ready-to-use Docker containers and plenty of guides available online — setting it up shouldn’t be a problem.
-It's a bit tricky because you'll need to put a header(.h) file to the config folder, but I think you can handle it.
+It's a bit tricky because you'll need to put a header (mix_tools.h) file to the config folder, but і think - you can handle it.
 
-The device configuration (`.yaml`) and the corresponding header file (`.h`)
+The ESP32 device configuration (`mix_*.yaml`) and the corresponding header file (`mix_tools.h`)
 are located in this repository under:
 
 
@@ -32,18 +32,19 @@ esphome/
 ```
 
 * mix_momentary.yaml - If you wish to use momentary switches to mute the sound. 
-* mix_latching.yaml - for latching switches.
-* **If you don't need the mute button functionality**, use mix_latching.yaml (remove the binary_sensor block from yaml).
+* mix_latching.yaml - for latching switches (preffered)
+* **If you don't need the mute button functionality**, use mix_latching.yaml and comment out or remove the "binary_sensor" block from yaml.
 
-extra: 
-* you can use empty wifi and improv_serial sections instead existing wifi and captive_portal sections, and, after flashing use https://web.esphome.io/ to configue wifi connection any time you want w/o reflashing.
-* factory reset button (erase wifi/other settings) can be implemented in this way: 
-```
-button:
-  - platform: factory_reset
-    icon: "mdi:restart-alert"
-    name: Factory reset.
-```
+there 2 option: 
+* hardcode your wifi credentials into firmware.
+* (preffered) use empty wifi and improv_serial sections and https://web.esphome.io/ (after connecting to device use "vertical ..." -> "Configure WiFi") to configue wifi connection settings any time you want w/o reflashing. 
+
+Optional things (uncomment to activate):
+* factory reset button (erase wifi/other settings) 
+* home assitant integration
+* OTA updates
+* Captive portal https://esphome.io/components/captive_portal/
+
 
 ---
 
@@ -81,16 +82,16 @@ The ESP32 ADC limit is about **3.12 V**, while its LDO outputs **3.3 V**.
 To stay within range, lower the potentiometer reference voltage:
 
 ### Option 1 — use voltage Divider
+**(!) in most cases you will need to change adc_attenuation field from 12db to 6db in device configuration yaml**
 
 ![Voltage Divider](ref/1.png)
 
-### Option 2 — use diode
 
-Use a small diode (e.g. 1N4148) to drop ≈ 0.2–0.3 V
-*(actually, almost any will be fine — even one found in a junk box, as long as it’s not burned out)*.
+### Option 2 — use diode (preffered)
 
+Use a small PN diode to drop ≈ 0.2–0.7 V
+*(actually, almost any diode will be fine — even one found in a junk box, as long as it’s not burned out)*.
 
-**(!) you will need to change attenuation fields from 6db to 12db in esphome yaml**
 
 ![Diode](ref/2.png)
 
@@ -100,7 +101,8 @@ Use a small diode (e.g. 1N4148) to drop ≈ 0.2–0.3 V
 
 * Avoid **ADC3** — it’s internally reserved.
 * **GPIO 8** is used as the "ADC maximum" reference input.
-* to use mute/unmute (sw0..sw5) just connect any switch/latching button between GPIO9..GPIO14 and GND and configure switches_mapping section.
+* to use mute/unmute (sw0..sw5) just connect any switch/latching/momentart button between GPIO9..GPIO14 and GND and configure binary_sensor section in yaml, and, switches_mapping section in deej config.
+* status led (blue) states: constantly ON = wifi not configured; blinking = connecting/not connected; constantly OFF = connected
 
 ---
 
