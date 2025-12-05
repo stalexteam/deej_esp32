@@ -15,7 +15,7 @@ esphome:
     board_upload.maximum_size: 16777216
   project: 
     name: esphome.web
-    version: dev
+    version: stable
   includes:
     - mix_tools.h
 
