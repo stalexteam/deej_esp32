@@ -13,7 +13,7 @@ import (
 
 	// go get github.com/stalexteam/eventsource_go
 	// or
-	// go get github.com/stalexteam/eventsource_go@8a9c6dbf946fabf97207f30804983e35e71a2434
+	// go get github.com/stalexteam/eventsource_go@560106ef627010194733a6fa413dbc3c16e407d9
 	eventsource "github.com/stalexteam/eventsource_go"
 	"go.uber.org/zap"
 )
@@ -88,7 +88,8 @@ func (s *SseIO) Start() error {
 	s.req, _ = http.NewRequestWithContext(s.ctx, http.MethodGet, url, nil)
 
 	s.es = eventsource.New(s.req, 3*time.Second)
-	s.es.ReadTimeout = 12 * time.Second // esphome ping each 10 sec, so, timeout = 12 is ok.
+	s.es.IdleTimeout = 12 * time.Second  // esphome ping each 10 sec, so, timeout = 12 is ok.
+	s.es.RetryOverride = 1 * time.Second // esphome asks for 30sec, but, its to much.
 
 	// Callbacks
 	s.es.OnConnect = func(url string) {
