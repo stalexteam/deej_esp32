@@ -5,14 +5,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/omriharel/deej/pkg/deej/util"
+	"github.com/stalexteam/deej_esp32/pkg/deej/util"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 const (
-	buildTypeNone    = ""
-	buildTypeDev     = "dev"
 	buildTypeRelease = "release"
 
 	logDirectory = "logs"
@@ -27,7 +25,7 @@ func NewLogger(buildType string) (*zap.SugaredLogger, error) {
 	if buildType == buildTypeRelease {
 		if err := util.EnsureDirExists(logDirectory); err != nil {
 			return nil, fmt.Errorf("ensure log directory exists: %w", err)
-}
+		}
 
 		loggerConfig = zap.NewProductionConfig()
 

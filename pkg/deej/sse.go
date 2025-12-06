@@ -13,7 +13,7 @@ import (
 
 	// go get github.com/stalexteam/eventsource_go
 	// or
-	// go get github.com/stalexteam/eventsource_go@560106ef627010194733a6fa413dbc3c16e407d9
+	// go get github.com/stalexteam/eventsource_go@652696dbbe79ea0f3538e366c2b5afdb4058f549
 	eventsource "github.com/stalexteam/eventsource_go"
 	"go.uber.org/zap"
 )
@@ -180,27 +180,18 @@ func (s *SseIO) setupOnConfigReload() {
 
 	go func() {
 		for {
-			select {
-			case <-configReloadedChannel:
-				{
-					// restart in case when config was changed.
-					s.logger.Info("Detected changes in cofig, renew connection to retreive all values.")
-					s.Stop()
-					<-time.After(stopDelay)
-					if err := s.Start(); err != nil {
-						s.logger.Infow("Failed to renew connection after parameter change", "error", err)
-					} else {
-						s.logger.Debug("Renewed connection successfully")
-					}
-				}
+			<-configReloadedChannel
+			// restart in case when config was changed.
+			s.logger.Info("Detected changes in cofig, renew connection to retreive all values.")
+			s.Stop()
+			<-time.After(stopDelay)
+			if err := s.Start(); err != nil {
+				s.logger.Infow("Failed to renew connection after parameter change", "error", err)
+			} else {
+				s.logger.Debug("Renewed connection successfully")
 			}
 		}
 	}()
-}
-
-type sseStatePayload struct {
-	ID    string `json:"id"`
-	Value *int   `json:"value"` // optional in theory; ignore event if nil
 }
 
 var (

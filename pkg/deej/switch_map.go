@@ -50,15 +50,6 @@ func switchMapFromConfigs(userMapping map[string][]string, internalMapping map[s
 	return resultMap
 }
 
-func (m *switchMap) iterate(f func(int, []string)) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
-	for key, value := range m.m {
-		f(key, value)
-	}
-}
-
 func (m *switchMap) get(key int) ([]string, bool) {
 	m.lock.Lock()
 	defer m.lock.Unlock()

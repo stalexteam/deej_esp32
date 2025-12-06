@@ -128,11 +128,9 @@ func (m *sessionMap) setupOnConfigReload() {
 
 	go func() {
 		for {
-			select {
-			case <-configReloadedChannel:
-				m.logger.Info("Detected config reload, attempting to re-acquire all audio sessions")
-				m.refreshSessions(false)
-			}
+			<-configReloadedChannel
+			m.logger.Info("Detected config reload, attempting to re-acquire all audio sessions")
+			m.refreshSessions(false)
 		}
 	}()
 }
@@ -142,10 +140,8 @@ func (m *sessionMap) setupOnSliderMove() {
 
 	go func() {
 		for {
-			select {
-			case event := <-sliderEventsChannel:
-				m.handleSliderMoveEvent(event)
-			}
+			event := <-sliderEventsChannel
+			m.handleSliderMoveEvent(event)
 		}
 	}()
 }
@@ -155,10 +151,8 @@ func (m *sessionMap) setupOnSwitchEvent() {
 
 	go func() {
 		for {
-			select {
-			case event := <-switchEventsChannel:
-				m.handleSwitchEvent(event)
-			}
+			event := <-switchEventsChannel
+			m.handleSwitchEvent(event)
 		}
 	}()
 }

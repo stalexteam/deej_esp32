@@ -25,10 +25,10 @@
 #  2:
 #  3:
 #  4:
-#  5: 
-    
+#  5:
+
 slider_mapping:
-  0: 
+  0:
   1:
   2:
   3:
@@ -45,7 +45,7 @@ switches_mapping:
   2:
   3:
   4:
-  5: 
+  5:
 
 invert_switches: false
 
