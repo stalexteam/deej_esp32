@@ -27,7 +27,7 @@ func NewLogger(buildType string) (*zap.SugaredLogger, error) {
 	if buildType == buildTypeRelease {
 		if err := util.EnsureDirExists(logDirectory); err != nil {
 			return nil, fmt.Errorf("ensure log directory exists: %w", err)
-		}
+}
 
 		loggerConfig = zap.NewProductionConfig()
 

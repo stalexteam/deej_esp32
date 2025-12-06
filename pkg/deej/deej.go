@@ -8,7 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/omriharel/deej/pkg/deej/util"
+	"github.com/stalexteam/deej_esp32/pkg/deej/util"
 )
 
 const (

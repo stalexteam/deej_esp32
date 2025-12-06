@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/omriharel/deej/pkg/deej/util"
+	"github.com/stalexteam/deej_esp32/pkg/deej/util"
 	"github.com/thoas/go-funk"
 	"go.uber.org/zap"
 )
@@ -118,7 +118,7 @@ func (m *sessionMap) getAndAddSessions() error {
 		}
 	}
 
-	m.logger.Infow("Got all audio sessions successfully", "sessionMap", m)
+	m.logger.Debugw("Got all audio sessions successfully", "sessionMap", m)
 
 	return nil
 }
