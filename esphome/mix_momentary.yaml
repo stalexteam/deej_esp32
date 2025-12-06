@@ -49,7 +49,7 @@ esp32:
       CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM: "32"     # Increase RX buffer count (default = 10), smoother under load
       CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM: "10"      # Keep static buffer pool reasonably sized
       CONFIG_ESP_WIFI_TX_BUFFER_TYPE: "1"             # 1 = static TX buffers (more stable, less jitter on S3)
-      CONFIG_ESP_WIFI_STATIC_TX_BUFFER_NUM: "8"       # TX buffer count
+      CONFIG_ESP_WIFI_STATIC_TX_BUFFER_NUM: "32"      # TX buffer count
 
       # --- Memory and heap stability --------------------------------------
       CONFIG_ESP_SYSTEM_MEMPROT_FEATURE: "n"          # Disable mem-protection overhead (safe for controlled systems)
@@ -65,11 +65,8 @@ esp32:
       # --- Disable unused Wi-Fi features (free up RAM/CPU) ----------------
       CONFIG_ESP_WIFI_SOFTAP_SUPPORT: "n"             # Disable SoftAP 
       CONFIG_ESP_WIFI_ENABLE_WPA3_SAE: "n"            # Disable WPA3 (heavy on CPU & memory)
-      CONFIG_ESP_WIFI_MGMT_SBUF_NUM: "8"              # Fewer management frames (sufficient for STA-only)
-      CONFIG_ESP_WIFI_ENABLE_RRM: "n"                 # Disable scan
 
       # --- Networking stack tuning ----------------------------------------
-      CONFIG_LWIP_MAX_SOCKETS: "10"                   # Reduce socket count (enough for HTTP + system)
       CONFIG_LWIP_TCP_QUEUE_OOSEQ: "n"                # Disable out-of-order queue (saves RAM, improves latency)
       CONFIG_LWIP_CHECKSUM_CHECK_ICMP: "n"            # Skip extra ICMP validations (reduces ping jitter)
       CONFIG_LWIP_TCPIP_TASK_STACK_SIZE: "4096"       # Larger TCP/IP thread stack for stability
@@ -102,18 +99,14 @@ logger:
 # WiFi config. Option 1: Enable wifi (hardcoded credentials)
 #wifi:
 #  id: wifi_module
-#  enable_rrm: true
-#  fast_connect: true
 #  output_power: 8.5db
 #  power_save_mode: none
+#  fast_connect: true
 #  ssid: !secret wifi_ssid
 #  password: !secret wifi_password
 #  ap:
 #    ssid: "Mixer Fallback Hotspot"
 #    password: !secret fallback_password
-
-# Optional: Enable captive portal (fallback hotspot shoulr be configured) !!! remove "CONFIG_ESP_WIFI_SOFTAP_SUPPORT" from sdkconfig_options
-#captive_portal:
 
 # WiFi config. Option 2 (production preffered): wifi ssid and password should be configured via https://web.esphome.io/ by improv_serial (you can do it any time after flashing)
 wifi:
@@ -122,6 +115,9 @@ wifi:
   power_save_mode: none
 improv_serial:
   next_url: http://{{device_name}}/
+
+# Optional: Enable captive portal (fallback hotspot) !!! you should remove "CONFIG_ESP_WIFI_SOFTAP_SUPPORT" from sdkconfig_options !!!
+#captive_portal:
 
 # wifi status led
 switch:
