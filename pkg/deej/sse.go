@@ -13,7 +13,7 @@ import (
 
 	// go get github.com/stalexteam/eventsource_go
 	// or
-	// go get github.com/stalexteam/eventsource_go@652696dbbe79ea0f3538e366c2b5afdb4058f549
+	// go get github.com/stalexteam/eventsource_go@e4bf3622d2df75116819b60deec118eddf4bde3a
 	eventsource "github.com/stalexteam/eventsource_go"
 	"go.uber.org/zap"
 )
@@ -87,9 +87,8 @@ func (s *SseIO) Start() error {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.req, _ = http.NewRequestWithContext(s.ctx, http.MethodGet, url, nil)
 
-	s.es = eventsource.New(s.req, 3*time.Second)
-	s.es.IdleTimeout = 12 * time.Second  // esphome ping each 10 sec, so, timeout = 12 is ok.
-	s.es.RetryOverride = 1 * time.Second // esphome asks for 30sec, but, its to much.
+	s.es = eventsource.New(s.req)
+	s.es.IdleTimeout = 12 * time.Second // esphome ping each 10 sec, so, timeout = 12 is ok.
 
 	// Callbacks
 	s.es.OnConnect = func(url string) {
@@ -154,6 +153,10 @@ func (s *SseIO) close(logger *zap.SugaredLogger) {
 	// cancel context to abort Read()
 	if s.cancel != nil {
 		s.cancel()
+	}
+
+	if s.es != nil {
+		s.es.Close()
 	}
 
 	logger.Debug("SSE connection closed")
