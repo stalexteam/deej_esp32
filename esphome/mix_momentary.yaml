@@ -224,7 +224,7 @@ sensor:
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
-      return (float) mixer_math((uint16_t)(id(s0_v).state), (uint16_t)(id(vref).state), false);
+      return mixer_math((uint16_t)(id(s0_v).state), (uint16_t)(id(vref).state), false);
     filters:
       - delta: 1
       - throttle_average: 75ms
@@ -236,7 +236,7 @@ sensor:
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
-      return (float) mixer_math((uint16_t)(id(s1_v).state), (uint16_t)(id(vref).state), false);
+      return mixer_math((uint16_t)(id(s1_v).state), (uint16_t)(id(vref).state), false);
     filters:
       - delta: 1
       - throttle_average: 75ms
@@ -248,7 +248,7 @@ sensor:
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
-      return (float) mixer_math((uint16_t)(id(s2_v).state), (uint16_t)(id(vref).state), false);
+      return mixer_math((uint16_t)(id(s2_v).state), (uint16_t)(id(vref).state), false);
     filters:
       - delta: 1
       - throttle_average: 75ms
@@ -260,7 +260,7 @@ sensor:
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
-      return (float) mixer_math((uint16_t)(id(s3_v).state), (uint16_t)(id(vref).state), false);
+      return mixer_math((uint16_t)(id(s3_v).state), (uint16_t)(id(vref).state), false);
     filters:
       - delta: 1
       - throttle_average: 75ms
@@ -272,7 +272,7 @@ sensor:
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
-      return (float) mixer_math((uint16_t)(id(s4_v).state), (uint16_t)(id(vref).state), false);
+      return mixer_math((uint16_t)(id(s4_v).state), (uint16_t)(id(vref).state), false);
     filters:
       - delta: 1
       - throttle_average: 75ms
@@ -285,10 +285,22 @@ sensor:
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
-      return (float) mixer_math((uint16_t)(id(s5_v).state), (uint16_t)(id(vref).state), false);
+      return mixer_math((uint16_t)(id(s5_v).state), (uint16_t)(id(vref).state), false);
     filters:
       - delta: 1
       - throttle_average: 75ms
+
+  - platform: wifi_signal
+    id: wifi_signal_db
+    internal: true
+    update_interval: 5s
+
+  - platform: copy 
+    source_id: wifi_signal_db
+    name: "WiFi strength"
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+    unit_of_measurement: "%"
 
 globals:
   - id: sw0_state
@@ -315,7 +327,7 @@ globals:
     type: bool
     restore_value: yes
     initial_value: "false"
-    
+        
 binary_sensor:
   - platform: gpio
     id: sw0_input
