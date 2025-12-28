@@ -23,7 +23,7 @@ To build and flash the ESP32, you’ll need **ESPHome**.
 There are ready-to-use Docker containers and plenty of guides available online — setting it up shouldn’t be a problem.
 It's a bit tricky because you'll need to put a header (mix_tools.h) file to the config folder, but і think - you can handle it.
 
-If you use HA, everything is [extremely simple](https://drive.google.com/file/d/1BMy3CoxtEZqwKd2B-B0Jz64usQFDXO8t/view?usp=sharing) (through the espome plugin): 
+If you use HA, everything is [extremely simple](https://drive.google.com/file/d/1BMy3CoxtEZqwKd2B-B0Jz64usQFDXO8t/view?usp=sharing) (through the espome plugin).
 
 The ESP32 device configuration (`mix_*.yaml`) and the corresponding header file (`mix_tools.h`)
 are located in this repository under:
