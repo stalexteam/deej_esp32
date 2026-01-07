@@ -1,8 +1,8 @@
 substitutions:
   debounce_interval: 30ms
   adc_attenuation: 12db #Options: 6db, 12db. depends on max possible voltage on ADC pins.
-  update_interval: 33ms
-  adc_samples: 32       #JFYI: max sample rate about 6k
+  update_interval: 10ms
+  adc_samples: 16       #JFYI: max sample rate about 6k
 
 esphome:
   name: mix
@@ -224,10 +224,9 @@ sensor:
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
-      return mixer_math((uint16_t)(id(s0_v).state), (uint16_t)(id(vref).state), false);
+      return mixer_math(0, (uint16_t)(id(s0_v).state), (uint16_t)(id(vref).state), false);
     filters:
-      - delta: 1
-      - throttle_average: 75ms
+      - delta: .5
 
   - platform: template
     id: pot1
@@ -236,10 +235,10 @@ sensor:
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
-      return mixer_math((uint16_t)(id(s1_v).state), (uint16_t)(id(vref).state), false);
+      return mixer_math(1, (uint16_t)(id(s1_v).state), (uint16_t)(id(vref).state), false);
     filters:
-      - delta: 1
-      - throttle_average: 75ms
+      - delta: .5
+
 
   - platform: template
     id: pot2
@@ -248,10 +247,9 @@ sensor:
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
-      return mixer_math((uint16_t)(id(s2_v).state), (uint16_t)(id(vref).state), false);
+      return mixer_math(2, (uint16_t)(id(s2_v).state), (uint16_t)(id(vref).state), false);
     filters:
-      - delta: 1
-      - throttle_average: 75ms
+      - delta: .5
 
   - platform: template
     id: pot3
@@ -260,10 +258,9 @@ sensor:
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
-      return mixer_math((uint16_t)(id(s3_v).state), (uint16_t)(id(vref).state), false);
+      return mixer_math(3, (uint16_t)(id(s3_v).state), (uint16_t)(id(vref).state), false);
     filters:
-      - delta: 1
-      - throttle_average: 75ms
+      - delta: .5
 
   - platform: template
     id: pot4
@@ -272,23 +269,20 @@ sensor:
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
-      return mixer_math((uint16_t)(id(s4_v).state), (uint16_t)(id(vref).state), false);
+      return mixer_math(4, (uint16_t)(id(s4_v).state), (uint16_t)(id(vref).state), false);
     filters:
-      - delta: 1
-      - throttle_average: 75ms
+      - delta: .5
 
   - platform: template
     id: pot5
     name: "pot5"
-    
     unit_of_measurement: "%"
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
-      return mixer_math((uint16_t)(id(s5_v).state), (uint16_t)(id(vref).state), false);
+      return mixer_math(5, (uint16_t)(id(s5_v).state), (uint16_t)(id(vref).state), false);
     filters:
-      - delta: 1
-      - throttle_average: 75ms
+      - delta: .5
 
   - platform: wifi_signal
     id: wifi_signal_db
