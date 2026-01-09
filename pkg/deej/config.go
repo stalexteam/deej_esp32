@@ -19,7 +19,9 @@ type CanonicalConfig struct {
 	SwitchesMapping *switchMap
 
 	ConnectionInfo struct {
-		URL string
+		SSE_URL         string
+		SERIAL_Port     string
+		SERIAL_BaudRate int
 	}
 
 	InvertSliders  bool
@@ -45,15 +47,19 @@ const (
 
 	configType = "yaml"
 
-	configKeySliderMapping   = "slider_mapping"
-	configKeySwitchesMapping = "switches_mapping"
+	configKey_SliderMapping   = "slider_mapping"
+	configKey_SwitchesMapping = "switches_mapping"
 
-	configKeyInvertSliders  = "invert_sliders"
-	configKeyInvertSwitches = "invert_switches"
+	configKey_InvertSliders  = "invert_sliders"
+	configKey_InvertSwitches = "invert_switches"
 
-	configKeyURL = "URL"
+	configKey_SSE_URL         = "SSE_URL"
+	configKey_SERIAL_PORT     = "SERIAL_Port"
+	configKey_SERIAL_BaudRate = "SERIAL_BaudRate"
 
-	defaultURL = "http://mix.local/events"
+	default_SSE_URL         = "" //http://mix.local/events
+	default_SERIAL_PORT     = ""
+	default_SERIAL_BaudRate = 0
 )
 
 // has to be defined as a non-constant because we're using path.Join
@@ -76,11 +82,13 @@ func NewConfig(logger *zap.SugaredLogger, notifier Notifier) (*CanonicalConfig, 
 	userConfig.SetConfigType(configType)
 	userConfig.AddConfigPath(userConfigPath)
 
-	userConfig.SetDefault(configKeySliderMapping, map[string][]string{})
-	userConfig.SetDefault(configKeySwitchesMapping, map[string][]string{})
-	userConfig.SetDefault(configKeyInvertSliders, false)
-	userConfig.SetDefault(configKeyInvertSwitches, false)
-	userConfig.SetDefault(configKeyURL, defaultURL)
+	userConfig.SetDefault(configKey_SliderMapping, map[string][]string{})
+	userConfig.SetDefault(configKey_SwitchesMapping, map[string][]string{})
+	userConfig.SetDefault(configKey_InvertSliders, false)
+	userConfig.SetDefault(configKey_InvertSwitches, false)
+	userConfig.SetDefault(configKey_SSE_URL, default_SSE_URL)
+	userConfig.SetDefault(configKey_SERIAL_PORT, default_SERIAL_PORT)
+	userConfig.SetDefault(configKey_SERIAL_BaudRate, default_SERIAL_BaudRate)
 
 	internalConfig := viper.New()
 	internalConfig.SetConfigName(internalConfigName)
@@ -200,25 +208,39 @@ func (cc *CanonicalConfig) WatchConfigFileChanges() {
 // StopWatchingConfigFile signals our filesystem watcher to stop
 func (cc *CanonicalConfig) StopWatchingConfigFile() {
 	cc.stopWatcherChannel <- true
+	
+	// Close all reload consumer channels to signal goroutines to exit
+	cc.closeReloadChannels()
+}
+
+// closeReloadChannels closes all reload consumer channels to signal goroutines to exit
+func (cc *CanonicalConfig) closeReloadChannels() {
+	for _, ch := range cc.reloadConsumers {
+		close(ch)
+	}
+	cc.reloadConsumers = nil
+	cc.logger.Debug("Closed all config reload channels")
 }
 
 func (cc *CanonicalConfig) populateFromVipers() error {
 
 	// merge the slider mappings from the user and internal configs
 	cc.SliderMapping = sliderMapFromConfigs(
-		cc.userConfig.GetStringMapStringSlice(configKeySliderMapping),
-		cc.internalConfig.GetStringMapStringSlice(configKeySliderMapping),
+		cc.userConfig.GetStringMapStringSlice(configKey_SliderMapping),
+		cc.internalConfig.GetStringMapStringSlice(configKey_SliderMapping),
 	)
 
 	cc.SwitchesMapping = switchMapFromConfigs(
-		cc.userConfig.GetStringMapStringSlice(configKeySwitchesMapping),
-		cc.internalConfig.GetStringMapStringSlice(configKeySwitchesMapping),
+		cc.userConfig.GetStringMapStringSlice(configKey_SwitchesMapping),
+		cc.internalConfig.GetStringMapStringSlice(configKey_SwitchesMapping),
 	)
 
-	cc.ConnectionInfo.URL = cc.userConfig.GetString(configKeyURL)
+	cc.ConnectionInfo.SSE_URL = cc.userConfig.GetString(configKey_SSE_URL)
+	cc.ConnectionInfo.SERIAL_Port = cc.userConfig.GetString(configKey_SERIAL_PORT)
+	cc.ConnectionInfo.SERIAL_BaudRate = cc.userConfig.GetInt(configKey_SERIAL_BaudRate)
 
-	cc.InvertSliders = cc.userConfig.GetBool(configKeyInvertSliders)
-	cc.InvertSwitches = cc.userConfig.GetBool(configKeyInvertSwitches)
+	cc.InvertSliders = cc.userConfig.GetBool(configKey_InvertSliders)
+	cc.InvertSwitches = cc.userConfig.GetBool(configKey_InvertSwitches)
 
 	cc.logger.Debug("Populated config fields from vipers")
 
@@ -229,6 +251,19 @@ func (cc *CanonicalConfig) onConfigReloaded() {
 	cc.logger.Debug("Notifying consumers about configuration reload")
 
 	for _, consumer := range cc.reloadConsumers {
-		consumer <- true
+		// Safely send to channel, handling closed channels
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					// Channel is closed, ignore
+					cc.logger.Debugw("Config reload channel closed, skipping notification", "recover", r)
+				}
+			}()
+			select {
+			case consumer <- true:
+			default:
+				// Channel is full, skip
+			}
+		}()
 	}
 }

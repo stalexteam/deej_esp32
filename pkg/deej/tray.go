@@ -1,6 +1,8 @@
 package deej
 
 import (
+	"os"
+
 	"github.com/getlantern/systray"
 
 	"github.com/stalexteam/deej_esp32/pkg/deej/icon"
@@ -22,6 +24,13 @@ func (d *Deej) initializeTray(onDone func()) {
 
 		refreshSessions := systray.AddMenuItem("Re-scan audio sessions", "Manually refresh audio sessions if something's stuck")
 		refreshSessions.SetIcon(icon.RefreshSessions)
+
+		// Only enable stack trace dump in verbose/debug mode
+		var dumpStack *systray.MenuItem
+		if d.verbose {
+			dumpStack = systray.AddMenuItem("Dump stack trace", "Output all goroutines stack trace to log (for debugging deadlocks)")
+			dumpStack.SetIcon(icon.RefreshSessions) // Reuse icon, or we can add a new one later
+		}
 
 		if d.version != "" {
 			systray.AddSeparator()
@@ -49,7 +58,14 @@ func (d *Deej) initializeTray(onDone func()) {
 
 					editor := "notepad.exe"
 					if util.Linux() {
-						editor = "gedit"
+						// Try $EDITOR first, then fallback to common editors
+						if editorEnv := os.Getenv("EDITOR"); editorEnv != "" {
+							editor = editorEnv
+						} else {
+							// Try common Linux editors in order of preference
+							editor = "xdg-open"
+							// xdg-open will open with default text editor
+						}
 					}
 
 					if err := util.OpenExternal(logger, editor, userConfigFilepath); err != nil {
@@ -66,6 +82,17 @@ func (d *Deej) initializeTray(onDone func()) {
 				}
 			}
 		}()
+
+		// dump stack trace handler (only in verbose/debug mode)
+		if d.verbose && dumpStack != nil {
+			go func() {
+				for {
+					<-dumpStack.ClickedCh
+					logger.Info("Dump stack trace menu item clicked, outputting all goroutines stack trace")
+					util.DumpAllGoroutines(logger)
+				}
+			}()
+		}
 
 		// actually start the main runtime
 		onDone()

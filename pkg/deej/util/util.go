@@ -39,10 +39,17 @@ func Linux() bool {
 // SetupCloseHandler creates a 'listener' on a new goroutine which will notify the
 // program if it receives an interrupt from the OS
 func SetupCloseHandler() chan os.Signal {
-	c := make(chan os.Signal)
+	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	return c
+}
+
+// DumpAllGoroutines writes stack traces of all goroutines to the logger
+func DumpAllGoroutines(logger *zap.SugaredLogger) {
+	buf := make([]byte, 1024*1024) // 1MB buffer
+	n := runtime.Stack(buf, true)
+	logger.Errorw("All goroutines stack trace", "stack", string(buf[:n]))
 }
 
 // GetCurrentWindowProcessNames returns the process names (including extension, if applicable)

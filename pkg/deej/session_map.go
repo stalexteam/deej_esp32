@@ -25,6 +25,17 @@ type sessionMap struct {
 	unmappedSessions   []Session
 }
 
+// SliderMoveEvent represents a single slider move captured by deej
+type SliderMoveEvent struct {
+	SliderID     int
+	PercentValue float32
+}
+
+type SwitchEvent struct {
+	SwitchID int
+	State    bool
+}
+
 const (
 	masterSessionName = "master" // master device volume
 	systemSessionName = "system" // system sounds volume
@@ -74,6 +85,20 @@ func newSessionMap(deej *Deej, logger *zap.SugaredLogger, sessionFinder SessionF
 }
 
 func (m *sessionMap) initialize() error {
+	// Log all available audio devices at startup
+	if devices, err := m.sessionFinder.GetAllDevices(); err == nil {
+		m.logger.Infow("Available audio devices", "count", len(devices))
+		for _, device := range devices {
+			if device.Description != "" {
+				m.logger.Infow("Audio device", "name", device.Name, "type", device.Type, "description", device.Description)
+			} else {
+				m.logger.Infow("Audio device", "name", device.Name, "type", device.Type)
+			}
+		}
+	} else {
+		m.logger.Warnw("Failed to enumerate audio devices", "error", err)
+	}
+
 	if err := m.getAndAddSessions(); err != nil {
 		m.logger.Warnw("Failed to get all sessions during session map initialization", "error", err)
 		return fmt.Errorf("get all sessions during init: %w", err)
@@ -112,13 +137,17 @@ func (m *sessionMap) getAndAddSessions() error {
 	for _, session := range sessions {
 		m.add(session)
 
+		// Log all sessions at INFO level so they appear in release build logs
+		m.logger.Infow("Audio session", "key", session.Key(), "session", session)
+
 		if !m.sessionMapped(session) {
 			m.logger.Debugw("Tracking unmapped session", "session", session)
 			m.unmappedSessions = append(m.unmappedSessions, session)
 		}
 	}
 
-	m.logger.Debugw("Got all audio sessions successfully", "sessionMap", m)
+	m.logger.Infow("Got all audio sessions successfully", "count", len(sessions))
+	m.logger.Debugw("Session map details", "sessionMap", m)
 
 	return nil
 }
@@ -136,22 +165,32 @@ func (m *sessionMap) setupOnConfigReload() {
 }
 
 func (m *sessionMap) setupOnSliderMove() {
-	sliderEventsChannel := m.deej.sse.SubscribeToSliderMoveEvents()
+	sliderEventsChannel := m.deej.SubscribeToSliderMoveEvents()
 
 	go func() {
 		for {
-			event := <-sliderEventsChannel
+			event, ok := <-sliderEventsChannel
+			if !ok {
+				// Channel closed, exit goroutine
+				m.logger.Debug("Slider events channel closed, exiting handler")
+				return
+			}
 			m.handleSliderMoveEvent(event)
 		}
 	}()
 }
 
 func (m *sessionMap) setupOnSwitchEvent() {
-	switchEventsChannel := m.deej.sse.SubscribeToSwitchEvents()
+	switchEventsChannel := m.deej.SubscribeToSwitchEvents()
 
 	go func() {
 		for {
-			event := <-switchEventsChannel
+			event, ok := <-switchEventsChannel
+			if !ok {
+				// Channel closed, exit goroutine
+				m.logger.Debug("Switch events channel closed, exiting handler")
+				return
+			}
 			m.handleSwitchEvent(event)
 		}
 	}()

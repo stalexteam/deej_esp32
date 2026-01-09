@@ -6,6 +6,10 @@
 # windows only - you can use a device's full name, i.e. "Speakers (Realtek High Definition Audio)", to bind it. this works for both output and input devices
 # windows only - you can use 'system' to control the "system sounds" volume
 # important: slider indexes start at 0, regardless of which analog pins you're using!
+#
+# To get a list of all available audio devices (useful for device targeting), check the log file:
+# Look for "Available audio devices" entries in logs/deej-latest-run.log
+# The device names shown in the log can be used directly in slider_mapping or switches_mapping.
 
 #example mapping:
 
@@ -28,9 +32,9 @@
 #  5:
 
 slider_mapping:
-  0:
+  0: 
   1:
-  2:
+  2: 
   3:
   4:
   5:
@@ -49,6 +53,30 @@ switches_mapping:
 
 invert_switches: false
 
-# esp event source location
-URL: http://mix.local/events
+# ConnectionInfo contains settings for I/O interfaces (transport layers)
+# You can configure either Serial UART (SERIAL_Port, SERIAL_BaudRate) or SSE (SSE_URL) transport layers here.
+#
+# TRANSPORT SELECTION LOGIC (at startup and on config reload):
+# - If both Serial and SSE are configured: Deej will try Serial first, fall back to SSE if Serial fails (port doesn't exist).
+# - If Serial port is busy (already in use): Deej will stop instead of falling back to SSE.
+# - If only one is configured: Deej will use that one.
+# - If neither is configured: Deej will notify and stop.
+#
+# CONFIG RELOAD BEHAVIOR (when you save this file):
+# - Transport switching: If you change from Serial to SSE (or vice versa), Deej will automatically switch interfaces.
+# - Parameter changes: If you change Serial port/baud rate or SSE URL, Deej will reconnect with new parameters.
+# - Optimization: If transport parameters haven't changed, Deej will NOT reconnect (even if other config like slider_mapping changed).
+#   This prevents unnecessary reconnections when you only modify audio mappings or other non-transport settings.
+# - Removing active transport: If you remove the currently active transport but another transport is configured,
+#   Deej will automatically switch to the available transport. Deej will only stop if BOTH transports are removed.
 
+# Serial UART interface as transport layer
+# Format: COMx (Windows) or /dev/ttyUSBx, /dev/ttyACMx (Linux)
+# Leave empty or set to 0 to disable Serial transport
+SERIAL_Port: COM18
+SERIAL_BaudRate: 115200
+
+# Server-Sent Events (SSE) as transport layer
+# Format: http://hostname:port/events or http://ip-address:port/events
+# Leave empty to disable SSE transport
+SSE_URL: http://mix.local/events

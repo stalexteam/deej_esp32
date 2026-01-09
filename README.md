@@ -1,19 +1,20 @@
 # 🧭 ESPHome Deej Fork
 
-A **variant of [Deej](https://github.com/omriharel/deej)** that uses **[ESPHome](https://esphome.io/) (ESP32)** instead of Arduino.
+A **variant of [Deej](https://github.com/omriharel/deej)** that uses **[ESPHome](https://esphome.io/) (ESP32)** instead of Arduino, with flexible transport options and mute switch implementation.
 
 ---
 
 ## 💡 Overview
 
-In this fork, the **transport layer is replaced**. (USB-UART > TCP)
-Instead of using a serial interface, data is transmitted with help of **[ESPHome Event Source API](https://esphome.io/web-api/#event-source-api)** — a feature built into the ESPHome `web_server` component.
+This fork allows the mixer to communicate over either **wired UART** or **Wi-Fi (SSE)**.
 
-As a result:
+Key improvements:
 
-* multiple Deej software instances can connect to the same mixer over Wi-Fi
-* **no USB-UART drivers are needed** (hello from win11)
-* ability to integrate mixer into home assistant (dimmer control for example)
+* **Choice of transport layer**: users can now connect via a USB-UART cable or wirelessly over Wi-Fi.
+* Multiple Deej software instances can connect to the same mixer over Wi-Fi simultaneously.
+* Easy integration into **Home Assistant** (e.g., dimmer control).
+
+You can select your preferred transport in the configuration. If both are configured, the software will attempt UART first. If UART connection fails (port doesn't exist) and SSE is configured, it will fallback to Wi-Fi SSE. If UART port is busy (already in use), the software will stop and notify you instead of falling back to SSE.
 
 ---
 
@@ -34,19 +35,87 @@ esphome/
 ```
 
 * mix_momentary.yaml - If you wish to use momentary switches to mute the sound. 
-* mix_latching.yaml - for latching switches (preffered)
+* mix_latching.yaml - for latching switches (preferred)
 * **If you don't need the mute button functionality**, use mix_latching.yaml and comment out or remove the "binary_sensor" block from yaml.
 
-there 2 option: 
+There are 2 options: 
 * hardcode your wifi credentials into firmware.
-* (preffered) use empty wifi and improv_serial sections and https://web.esphome.io/ (after connecting to device use "vertical ..." -> "Configure WiFi") to configue wifi connection settings any time you want w/o reflashing. 
+* (preferred) use empty wifi and improv_serial sections and https://web.esphome.io/ (after connecting to device use "vertical ..." -> "Configure WiFi") to configure wifi connection settings any time you want w/o reflashing. 
 
 Optional things (uncomment to activate):
 * factory reset button (erase wifi/other settings) 
 * home assitant integration
 * OTA updates
-* Captive portal https://esphome.io/components/captive_portal/
+* Captive portal ([docs](https://esphome.io/components/captive_portal/))
 
+---
+
+## 🚀 Running Deej
+
+### Requirements
+
+* **config.yaml** must be in the same directory as the deej executable.
+* For UART connection: ensure the ESP32 is connected via USB and the correct COM port is configured.
+* For SSE connection: ensure the ESP32 is on the same network and the URL is correct.
+
+**Linux-specific requirements:**
+* **PulseAudio**: Deej requires PulseAudio to be running for audio session management.
+* **System tray dependencies**: For building from source, you'll need:
+  * `libgtk-3-dev`
+  * `libappindicator3-dev`
+  * `libwebkit2gtk-4.0-dev`
+* **Text editor**: The tray menu uses `$EDITOR` environment variable if set, otherwise falls back to `xdg-open` (which uses your default text editor).
+
+**Platform differences:**
+* **Windows-only features** (not available on Linux):
+  * `deej.current` - control the currently active window/app
+  * `system` - control system sounds volume
+  * Device targeting by full name (e.g., "Speakers (Realtek High Definition Audio)")
+* **Linux**: Uses PulseAudio for audio session management. Process names are matched by binary name (e.g., `chrome` instead of `chrome.exe`).
+
+### Features
+
+* **Automatic reconnection**: If the connection is lost (UART or SSE), deej will automatically attempt to reconnect every 2 seconds.
+* **Hot-reload configuration**: The `config.yaml` file is automatically watched for changes. When you save the file, deej will reload the configuration and notify you via a system notification.
+* **System tray icon**: Deej runs in the system tray (Windows/Linux). Right-click the tray icon to:
+  * Edit configuration (opens config.yaml in your default text editor)
+  * Re-scan audio sessions (useful if new applications are not detected)
+  * View version information
+  * Quit deej
+* **Logging**: All logs are saved to `logs/deej-latest-run.log` for troubleshooting.
+  * **Audio devices list**: At startup, deej logs all available audio input/output devices. Check the log file to see device names that can be used in `config.yaml` for device targeting (Windows only).
+
+### Command-line Options
+
+* `--verbose` or `-v`: Enable verbose logging (useful for debugging connection issues)
+* Set environment variable `DEEJ_NO_TRAY_ICON=1` to run without a tray icon (useful for headless setups or scripts)
+
+---
+
+## 🔌 Transport Options
+
+You can now choose how Deej communicates with your mixer:
+
+### 1. Wired UART (Serial)
+
+* Connect the ESP32 to your PC using a USB cable.
+* Configure port and baud rate in Deej.
+* Reliable for low-latency setups or when Wi-Fi is unavailable.
+
+### 2. Wi-Fi / Server-Sent Events (SSE)
+
+* Use the ESPHome Event Source API to transmit data over Wi-Fi.
+* Supports multiple Deej clients connecting simultaneously.
+* No drivers needed for Windows, macOS, or Linux.
+* Integrates easily with Home Assistant.
+
+### 3. Both Options
+
+* You can configure both UART and SSE in the configuration file.
+* If both are configured, Deej will try UART first. If UART succeeds, it will use UART exclusively.
+* If UART fails (port doesn't exist) and SSE is configured, Deej will fallback to SSE.
+* **Note**: Only one Deej instance can use UART at a time (serial ports are exclusive), but multiple instances can connect via SSE simultaneously.
+* Useful for setups where you want a stable wired connection for the main controller but still allow wireless monitoring or control via SSE.
 
 ---
 
@@ -64,13 +133,11 @@ Optional things (uncomment to activate):
 
 ---
 
-## 🔧 STL/Assembly
+## 🔧 STL / Assembly
 
-* STL for **this exact BOM** fits perfectly can be found in 
-
-```
-esphome/stl.zip
-```
+* STL files for **this exact BOM** that fit perfectly can be found in the `ref/` directory:
+  * big_bot.stl, big_top.stl
+  * small_bot.stl, small_top.stl
 
 For assembly you will also need M3 hot inserts with a external diameter of 4.5mm, M3x8 screws, 20x20x2 mm silicone pads.
 
@@ -89,7 +156,7 @@ To stay within range, lower the potentiometer reference voltage:
 ![Voltage Divider](ref/1.png)
 
 
-### Option 2 — use diode (preffered)
+### Option 2 — use diode (preferred)
 
 Use a small PN diode to drop ≈ 0.2–0.7 V
 *(actually, almost any diode will be fine — even one found in a junk box, as long as it’s not burned out)*.
@@ -103,7 +170,7 @@ Use a small PN diode to drop ≈ 0.2–0.7 V
 
 * Avoid **ADC3** — it’s internally reserved.
 * **GPIO 8** is used as the "ADC maximum" reference input.
-* to use mute/unmute (sw0..sw5) just connect any switch/latching/momentart button between GPIO9..GPIO14 and GND and configure binary_sensor section in yaml, and, switches_mapping section in deej config.
+* to use mute/unmute (sw0..sw5) just connect any switch/latching/momentary button between GPIO9..GPIO14 and GND and configure binary_sensor section in yaml, and, switches_mapping section in deej config.
 * status led (blue) states: constantly ON = wifi not configured; blinking = connecting/not connected; constantly OFF = connected
 
 ---

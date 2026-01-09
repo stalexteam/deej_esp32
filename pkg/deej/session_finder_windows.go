@@ -147,6 +147,92 @@ func (sf *wcaSessionFinder) GetAllSessions() ([]Session, error) {
 	return sessions, nil
 }
 
+func (sf *wcaSessionFinder) GetAllDevices() ([]AudioDeviceInfo, error) {
+	devices := []AudioDeviceInfo{}
+
+	// we must call this every time we're about to list devices
+	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
+		const eFalse = 1
+		oleError := &ole.OleError{}
+		if errors.As(err, &oleError) && oleError.Code() != eFalse {
+			return nil, fmt.Errorf("call CoInitializeEx: %w", err)
+		}
+	}
+	defer ole.CoUninitialize()
+
+	// ensure we have a device enumerator
+	if err := sf.getDeviceEnumerator(); err != nil {
+		return nil, fmt.Errorf("get device enumerator: %w", err)
+	}
+
+	// get list of devices
+	var deviceCollection *wca.IMMDeviceCollection
+	if err := sf.mmDeviceEnumerator.EnumAudioEndpoints(wca.EAll, wca.DEVICE_STATE_ACTIVE, &deviceCollection); err != nil {
+		return nil, fmt.Errorf("enumerate active audio endpoints: %w", err)
+	}
+
+	// check how many devices there are
+	var deviceCount uint32
+	if err := deviceCollection.GetCount(&deviceCount); err != nil {
+		return nil, fmt.Errorf("get device count: %w", err)
+	}
+
+	// for each device:
+	for deviceIdx := uint32(0); deviceIdx < deviceCount; deviceIdx++ {
+		var endpoint *wca.IMMDevice
+		if err := deviceCollection.Item(deviceIdx, &endpoint); err != nil {
+			continue // skip this device
+		}
+		defer endpoint.Release()
+
+		// get the device's property store
+		var propertyStore *wca.IPropertyStore
+		if err := endpoint.OpenPropertyStore(wca.STGM_READ, &propertyStore); err != nil {
+			continue // skip this device
+		}
+		defer propertyStore.Release()
+
+		// get friendly name
+		value := &wca.PROPVARIANT{}
+		if err := propertyStore.GetValue(&wca.PKEY_Device_FriendlyName, value); err != nil {
+			continue // skip this device
+		}
+		friendlyName := value.String()
+
+		// get device description
+		var description string
+		if err := propertyStore.GetValue(&wca.PKEY_Device_DeviceDesc, value); err == nil {
+			description = value.String()
+		}
+
+		// get data flow (input or output)
+		dispatch, err := endpoint.QueryInterface(wca.IID_IMMEndpoint)
+		if err != nil {
+			continue // skip this device
+		}
+		endpointType := (*wca.IMMEndpoint)(unsafe.Pointer(dispatch))
+		defer endpointType.Release()
+
+		var dataFlow uint32
+		if err := endpointType.GetDataFlow(&dataFlow); err != nil {
+			continue // skip this device
+		}
+
+		deviceType := "Output"
+		if dataFlow == wca.ECapture {
+			deviceType = "Input"
+		}
+
+		devices = append(devices, AudioDeviceInfo{
+			Name:        friendlyName,
+			Type:        deviceType,
+			Description: description,
+		})
+	}
+
+	return devices, nil
+}
+
 func (sf *wcaSessionFinder) Release() error {
 
 	// skip unregistering the mmnotificationclient, as it's not implemented in go-wca

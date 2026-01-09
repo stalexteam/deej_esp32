@@ -18,7 +18,7 @@ esphome:
     version: stable
   includes:
     - mix_tools.h
-
+      
 esp32:
   board: esp32-s3-devkitc-1
   variant: ESP32S3  
@@ -86,6 +86,7 @@ web_server:
 # Enable logging (required for improv_serial component)
 logger:
   level: WARN
+  baud_rate: 115200
 
 # Optional: Enable Home Assistant API (you can use sliders/switches to control your HA devices)
 # api:
@@ -141,6 +142,10 @@ interval:
           } else {                 
             id(WiFiLed).turn_on(); 
           } 
+  - interval: 1s
+    then:
+      - lambda: |-
+          hostsend_all();
   - interval: 10s
     then:
       - lambda: |-
@@ -224,7 +229,7 @@ sensor:
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
-      return mixer_math(0, (uint16_t)(id(s0_v).state), (uint16_t)(id(vref).state), false);
+      return process_pot(0, (uint16_t)(id(s0_v).state), (uint16_t)(id(vref).state), false);
     filters:
       - delta: .5
 
@@ -235,7 +240,7 @@ sensor:
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
-      return mixer_math(1, (uint16_t)(id(s1_v).state), (uint16_t)(id(vref).state), false);
+      return process_pot(1, (uint16_t)(id(s1_v).state), (uint16_t)(id(vref).state), false);
     filters:
       - delta: .5
 
@@ -247,7 +252,7 @@ sensor:
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
-      return mixer_math(2, (uint16_t)(id(s2_v).state), (uint16_t)(id(vref).state), false);
+      return process_pot(2, (uint16_t)(id(s2_v).state), (uint16_t)(id(vref).state), false);
     filters:
       - delta: .5
 
@@ -258,7 +263,7 @@ sensor:
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
-      return mixer_math(3, (uint16_t)(id(s3_v).state), (uint16_t)(id(vref).state), false);
+      return process_pot(3, (uint16_t)(id(s3_v).state), (uint16_t)(id(vref).state), false);
     filters:
       - delta: .5
 
@@ -269,7 +274,7 @@ sensor:
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
-      return mixer_math(4, (uint16_t)(id(s4_v).state), (uint16_t)(id(vref).state), false);
+      return process_pot(4, (uint16_t)(id(s4_v).state), (uint16_t)(id(vref).state), false);
     filters:
       - delta: .5
 
@@ -280,7 +285,7 @@ sensor:
     accuracy_decimals: 0
     update_interval: ${update_interval}
     lambda: |-
-      return mixer_math(5, (uint16_t)(id(s5_v).state), (uint16_t)(id(vref).state), false);
+      return process_pot(5, (uint16_t)(id(s5_v).state), (uint16_t)(id(vref).state), false);
     filters:
       - delta: .5
 
@@ -408,34 +413,33 @@ binary_sensor:
           id(sw5_state) = !id(sw5_state);
           id(sw5).publish_state(id(sw5_state));
 
-
   - platform: template
     id: sw0
     name: "sw0"
     lambda: |-
-      return id(sw0_state);
+      return process_sw(0, id(sw0_state));
   - platform: template
     id: sw1
     name: "sw1"
     lambda: |-
-      return id(sw1_state);
+      return process_sw(1, id(sw1_state));
   - platform: template
     id: sw2
     name: "sw2"
     lambda: |-
-      return id(sw2_state);
+      return process_sw(2, id(sw2_state));
   - platform: template
     id: sw3
     name: "sw3"
     lambda: |-
-      return id(sw3_state);
+      return process_sw(3, id(sw3_state));
   - platform: template
     id: sw4
     name: "sw4"
     lambda: |-
-      return id(sw4_state);
+      return process_sw(4, id(sw4_state));
   - platform: template
     id: sw5
     name: "sw5"
     lambda: |-
-      return id(sw5_state);
+      return process_sw(5, id(sw5_state));

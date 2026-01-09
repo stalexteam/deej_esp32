@@ -74,6 +74,41 @@ func (sf *paSessionFinder) GetAllSessions() ([]Session, error) {
 	return sessions, nil
 }
 
+func (sf *paSessionFinder) GetAllDevices() ([]AudioDeviceInfo, error) {
+	devices := []AudioDeviceInfo{}
+
+	// Get all sinks (output devices)
+	sinkRequest := proto.GetSinkInfoList{}
+	sinkReply := proto.GetSinkInfoListReply{}
+	if err := sf.client.Request(&sinkRequest, &sinkReply); err == nil {
+		for _, sink := range sinkReply {
+			devices = append(devices, AudioDeviceInfo{
+				Name:        sink.Name,
+				Type:        "Output",
+				Description: sink.Description,
+			})
+		}
+	}
+
+	// Get all sources (input devices)
+	sourceRequest := proto.GetSourceInfoList{}
+	sourceReply := proto.GetSourceInfoListReply{}
+	if err := sf.client.Request(&sourceRequest, &sourceReply); err == nil {
+		for _, source := range sourceReply {
+			// Skip monitor sources (they're virtual)
+			if source.MonitorOfSink == proto.Undefined {
+				devices = append(devices, AudioDeviceInfo{
+					Name:        source.Name,
+					Type:        "Input",
+					Description: source.Description,
+				})
+			}
+		}
+	}
+
+	return devices, nil
+}
+
 func (sf *paSessionFinder) Release() error {
 	if err := sf.conn.Close(); err != nil {
 		sf.logger.Warnw("Failed to close PulseAudio connection", "error", err)

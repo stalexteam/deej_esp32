@@ -50,6 +50,9 @@ func NewLogger(buildType string) (*zap.SugaredLogger, error) {
 		enc.AppendString(fmt.Sprintf("%-27s", s))
 	}
 
+	// disable stack traces for cleaner logs
+	loggerConfig.DisableStacktrace = true
+
 	logger, err := loggerConfig.Build()
 	if err != nil {
 		return nil, fmt.Errorf("create zap logger: %w", err)
