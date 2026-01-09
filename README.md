@@ -182,8 +182,8 @@ You can now choose how Deej communicates with your mixer. Each option has its ow
 ## 🔧 STL / Assembly
 
 * STL files for **this exact BOM** that fit perfectly can be found in the `ref/` directory:
-  * big_bot.stl, big_top.stl
-  * small_bot.stl, small_top.stl
+  * big_bot.stl, big_top.stl - 6x sliders + place for 6x buttons switches (drill required count of holes. designed for MTS-101, but, mostly everythings with 6mm mount will fit)
+  * small_bot.stl, small_top.stl - 6x sliders.
 
 For assembly you will also need M3 hot inserts with a external diameter of 4.5mm, M3x8 screws, 20x20x2 mm silicone pads.
 
