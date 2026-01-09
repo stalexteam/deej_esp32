@@ -3,6 +3,7 @@ package deej
 import (
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,6 +27,8 @@ type CanonicalConfig struct {
 
 	InvertSliders  bool
 	InvertSwitches bool
+
+	SliderOverride map[int]int
 
 	logger             *zap.SugaredLogger
 	notifier           Notifier
@@ -52,6 +55,7 @@ const (
 
 	configKey_InvertSliders  = "invert_sliders"
 	configKey_InvertSwitches = "invert_switches"
+	configKey_SliderOverride = "slider_override"
 
 	configKey_SSE_URL         = "SSE_URL"
 	configKey_SERIAL_PORT     = "SERIAL_Port"
@@ -86,6 +90,7 @@ func NewConfig(logger *zap.SugaredLogger, notifier Notifier) (*CanonicalConfig, 
 	userConfig.SetDefault(configKey_SwitchesMapping, map[string][]string{})
 	userConfig.SetDefault(configKey_InvertSliders, false)
 	userConfig.SetDefault(configKey_InvertSwitches, false)
+	userConfig.SetDefault(configKey_SliderOverride, map[string]interface{}{})
 	userConfig.SetDefault(configKey_SSE_URL, default_SSE_URL)
 	userConfig.SetDefault(configKey_SERIAL_PORT, default_SERIAL_PORT)
 	userConfig.SetDefault(configKey_SERIAL_BaudRate, default_SERIAL_BaudRate)
@@ -141,6 +146,7 @@ func (cc *CanonicalConfig) Load() error {
 		"connectionInfo", cc.ConnectionInfo,
 		"invertSliders", cc.InvertSliders,
 		"invertSwitches", cc.InvertSwitches,
+		"sliderOverride", cc.SliderOverride,
 	)
 
 	return nil
@@ -241,6 +247,58 @@ func (cc *CanonicalConfig) populateFromVipers() error {
 
 	cc.InvertSliders = cc.userConfig.GetBool(configKey_InvertSliders)
 	cc.InvertSwitches = cc.userConfig.GetBool(configKey_InvertSwitches)
+
+	// Load slider override map
+	cc.SliderOverride = make(map[int]int)
+	overrideMap := cc.userConfig.GetStringMap(configKey_SliderOverride)
+	for sliderIdxString, value := range overrideMap {
+		sliderIdx, err := strconv.Atoi(sliderIdxString)
+		if err != nil {
+			cc.logger.Warnw("Invalid slider index in slider_override", "index", sliderIdxString, "error", err)
+			continue
+		}
+
+		// Handle different possible types from YAML (int, float64, string, or nil)
+		// nil or empty string means no override for this slider
+		if value == nil {
+			continue
+		}
+
+		var percent int
+		switch v := value.(type) {
+		case int:
+			percent = v
+		case float64:
+			percent = int(v)
+		case string:
+			if v == "" {
+				// Empty value means no override for this slider
+				continue
+			}
+			parsed, err := strconv.Atoi(v)
+			if err != nil {
+				cc.logger.Warnw("Invalid slider override value", "slider", sliderIdx, "value", v, "error", err)
+				continue
+			}
+			percent = parsed
+		default:
+			cc.logger.Warnw("Unexpected type for slider override value", "slider", sliderIdx, "type", fmt.Sprintf("%T", value))
+			continue
+		}
+
+		// Validate percentage range
+		if percent < 0 || percent > 100 {
+			cc.logger.Warnw("Slider override value out of range", "slider", sliderIdx, "value", percent)
+			if percent < 0 {
+				percent = 0
+			}
+			if percent > 100 {
+				percent = 100
+			}
+		}
+
+		cc.SliderOverride[sliderIdx] = percent
+	}
 
 	cc.logger.Debug("Populated config fields from vipers")
 

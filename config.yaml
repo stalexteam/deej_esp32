@@ -11,8 +11,11 @@
 # Look for "Available audio devices" entries in logs/deej-latest-run.log
 # The device names shown in the log can be used directly in slider_mapping or switches_mapping.
 
-#example mapping:
+# set this to true if you want the controls inverted (i.e. top is 0%, bottom is 100%)
+invert_sliders: false
 
+#sliders used to control the volume of specific applications/interface.
+#example mapping:
 #slider_mapping:
 #  0: master
 #  1: chrome.exe
@@ -22,7 +25,37 @@
 #    - rocketleague.exe
 #  4: discord.exe
 #  5: helloworld.exe
+slider_mapping:
+  0: 
+  1:
+  2:
+  3:
+  4:
+  5:
 
+# slider_override allows you to set constant volume levels for specific sliders.
+# This is useful for "muting" a slider's readings from ESP32 for a specific endpoint in a specific configuration (config file was replaced externally)
+# If a value is not set (empty or missing), the slider will use the value received from ESP32.
+# If a value is set, that constant value will be used instead of the ESP32 reading.
+#
+# Example:
+# slider_override:
+#   0:        # Slider 0: no override, use ESP32 value
+#   1: 100    # Slider 1: always use 100%
+#   2:        # Slider 2: no override, use ESP32 value
+#   3: 50     # Slider 3: always use 50%
+slider_override:
+  0: 
+  1:
+  2:
+  3:
+  4:
+  5:
+
+# set this to true if you want the mute switches inverted
+invert_switches: false
+
+# switches used to mute/unmute input/output.
 #switches_mapping:
 #  0: JBL TUNE770NC Hands-Free AG Audio
 #  1:
@@ -30,19 +63,6 @@
 #  3:
 #  4:
 #  5:
-
-slider_mapping:
-  0: 
-  1:
-  2: 
-  3:
-  4:
-  5:
-
-# set this to true if you want the controls inverted (i.e. top is 0%, bottom is 100%)
-invert_sliders: false
-
-# switches used to mute/unmute input/output.
 switches_mapping:
   0: 
   1:
@@ -51,7 +71,6 @@ switches_mapping:
   4:
   5:
 
-invert_switches: false
 
 # ConnectionInfo contains settings for I/O interfaces (transport layers)
 # You can configure either Serial UART (SERIAL_Port, SERIAL_BaudRate) or SSE (SSE_URL) transport layers here.

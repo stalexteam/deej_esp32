@@ -304,12 +304,25 @@ func (d *Deej) handleStateEvent(logger *zap.SugaredLogger, data []byte) {
 		}
 
 		idx, _ := strconv.Atoi(m[1])
-		n := float32(val) / 100.0
-		if n < 0 {
-			n = 0
-		} else if n > 1 {
-			n = 1
+		
+		// Check if there's an override value for this slider
+		var n float32
+		if overridePercent, hasOverride := d.config.SliderOverride[idx]; hasOverride {
+			// Use override value instead of ESP32 value
+			n = float32(overridePercent) / 100.0
+			if d.Verbose() {
+				logger.Debugw("Using slider override value", "slider", idx, "override", overridePercent)
+			}
+		} else {
+			// Use value from ESP32
+			n = float32(val) / 100.0
+			if n < 0 {
+				n = 0
+			} else if n > 1 {
+				n = 1
+			}
 		}
+		
 		if d.config.InvertSliders {
 			n = 1 - n
 		}
