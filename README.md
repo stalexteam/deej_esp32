@@ -109,13 +109,10 @@ You can now choose how Deej communicates with your mixer:
 * No drivers needed for Windows, macOS, or Linux.
 * Integrates easily with Home Assistant.
 
-### 3. Both Options
-
-* You can configure both UART and SSE in the configuration file.
-* If both are configured, Deej will try UART first. If UART succeeds, it will use UART exclusively.
-* If UART fails (port doesn't exist) and SSE is configured, Deej will fallback to SSE.
-* **Note**: Only one Deej instance can use UART at a time (serial ports are exclusive), but multiple instances can connect via SSE simultaneously.
-* Useful for setups where you want a stable wired connection for the main controller but still allow wireless monitoring or control via SSE.
+### 3. Hybrid Setup (ESP32 is connected to a Wi-Fi network)
+* One computer is connected to the ESP32 via USB-UART cable and communicates with it exclusively over serial (configure only UART port and baud rate in `config.yaml`).
+* Other computers on the same network can connect to the same ESP32 device over Wi-Fi using SSE (configure only SSE URL in their `config.yaml`).
+* This allows one primary controller via UART while enabling additional computers to monitor or control the mixer wirelessly over the network.
 
 ---
 
