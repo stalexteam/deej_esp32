@@ -219,18 +219,6 @@ Use a small PN diode to drop ≈ 0.2–0.7 V
 
 ---
 
-## 💡 Build from Linux for Windows
-
-```sh
-cd pkg/deej/cmd
-go mod tidy
-go mod vendor
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -a -o ./deej-debug-amd64.exe -ldflags='-extldflags "-static"'
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -a -o ./deej-amd64.exe -ldflags='-H=windowsgui -s -w -extldflags "-static"'
-```
-
----
-
 ## 🧱 License & Build
 
 License, build process, and Deej binary behavior are the same as in the original project:
