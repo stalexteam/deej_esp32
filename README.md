@@ -15,8 +15,7 @@ Key improvements:
 * Easy integration into **Home Assistant** (e.g., dimmer control).
 * Mute switches support
 * Path-based process matching support (e.q. c:\Program Files (x86)\Steam)
-You can select your preferred transport in the configuration. If both are configured, the software will attempt UART first. If UART connection fails (port doesn't exist) and SSE is configured, it will fallback to Wi-Fi SSE. If UART port is busy (already in use), the software will stop and notify you instead of falling back to SSE.
-
+  
 ---
 
 ## ⚙️ Firmware & Configuration
@@ -96,7 +95,10 @@ Optional things (uncomment to activate):
 
 ## 🔌 Transport Options
 
-You can now choose how Deej communicates with your mixer. Each option has its own benefits and configuration requirements:
+You can select your preferred transport in the configuration. 
+If both are configured, the software will attempt UART first. 
+If UART connection fails (port doesn't exist) and SSE is configured, it will fallback to Wi-Fi SSE. 
+If UART port is busy (already in use), the software will stop and notify you instead of falling back to SSE.
 
 ### 1. Wired UART (Serial)
 
