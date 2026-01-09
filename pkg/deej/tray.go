@@ -16,8 +16,8 @@ func (d *Deej) initializeTray(onDone func()) {
 		logger.Debug("Tray instance ready")
 
 		systray.SetTemplateIcon(icon.DeejLogo, icon.DeejLogo)
-		systray.SetTitle("deej")
-		systray.SetTooltip("deej")
+		systray.SetTitle("Deej ESP32")
+		systray.SetTooltip("Deej ESP32")
 
 		editConfig := systray.AddMenuItem("Edit configuration", "Open config file with notepad")
 		editConfig.SetIcon(icon.EditConfig)
