@@ -6,7 +6,10 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
+	"regexp"
 	"runtime"
+	"strings"
 	"syscall"
 
 	"go.uber.org/zap"
@@ -91,4 +94,80 @@ func NormalizeScalar(v float32) float32 {
 // a helper to make sure volume snaps correctly to 0 and 100, where appropriate
 func almostEquals(a float32, b float32) bool {
 	return math.Abs(float64(a-b)) < 0.000001
+}
+
+var (
+	windowsDrivePathRegex = regexp.MustCompile(`^[A-Za-z]:[/\\]`)
+	uncPathRegex = regexp.MustCompile(`^[/\\]{2}[^/\\]+[/\\]`)
+)
+
+// checks if a string looks like a file path
+func IsPath(s string) bool {
+	// C:\ or C:/
+	if windowsDrivePathRegex.MatchString(s) {
+		return true
+	}
+
+	//\\server\share or //server/share
+	if uncPathRegex.MatchString(s) {
+		return true
+	}
+
+	// Unix/Linux absolute paths
+	if strings.HasPrefix(s, "/") {
+		return true
+	}
+
+	// relative paths with path separators
+	if strings.Contains(s, string(filepath.Separator)) {
+		return true
+	}
+
+	// check for backslashes in relative paths
+	if runtime.GOOS == "windows" && strings.Contains(s, "\\") {
+		return true
+	}
+
+	return false
+}
+
+// normalizes a path for comparison:
+func NormalizePath(path string) (string, error) {
+	// Convert to absolute path
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("get absolute path: %w", err)
+	}
+
+	normalized := filepath.Clean(absPath)
+
+	// On Windows, make it lowercase for case-insensitive comparison
+	if runtime.GOOS == "windows" {
+		normalized = strings.ToLower(normalized)
+	}
+
+	return normalized, nil
+}
+
+// checks if a process path matches a target dir
+func PathMatches(processPath string, targetPath string) bool {
+	if processPath == "" || targetPath == "" {
+		return false
+	}
+
+	normalizedProcessPath, err := NormalizePath(processPath)
+	if err != nil {
+		return false
+	}
+
+	normalizedTargetPath, err := NormalizePath(targetPath)
+	if err != nil {
+		return false
+	}
+
+	if !strings.HasSuffix(normalizedTargetPath, string(filepath.Separator)) {
+		normalizedTargetPath += string(filepath.Separator)
+	}
+
+	return strings.HasPrefix(normalizedProcessPath, normalizedTargetPath)
 }

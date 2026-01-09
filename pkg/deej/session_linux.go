@@ -18,6 +18,7 @@ type paSession struct {
 	baseSession
 
 	processName string
+	processPath string
 
 	client *proto.Client
 
@@ -41,6 +42,7 @@ func newPASession(
 	sinkInputIndex uint32,
 	sinkInputChannels byte,
 	processName string,
+	processPath string,
 ) *paSession {
 
 	s := &paSession{
@@ -50,6 +52,7 @@ func newPASession(
 	}
 
 	s.processName = processName
+	s.processPath = processPath
 	s.name = processName
 	s.humanReadableDesc = processName
 
@@ -161,6 +164,10 @@ func (s *paSession) Release() {
 	s.logger.Debug("Releasing audio session")
 }
 
+func (s *paSession) ProcessPath() string {
+	return s.processPath
+}
+
 func (s *paSession) String() string {
 	return fmt.Sprintf(sessionStringFormat, s.humanReadableDesc, s.GetVolume())
 }
@@ -236,7 +243,7 @@ func (s *masterSession) GetMute() bool {
 			s.logger.Warnw("Failed to get mute state", "error", err)
 			return false
 		}
-		return reply.Muted
+		return reply.Mute
 	}
 
 	request := proto.GetSourceInfo{SourceIndex: s.streamIndex}
@@ -245,7 +252,7 @@ func (s *masterSession) GetMute() bool {
 		s.logger.Warnw("Failed to get mute state", "error", err)
 		return false
 	}
-	return reply.Muted
+	return reply.Mute
 }
 
 func (s *masterSession) SetMute(v bool, silent bool) error {
@@ -271,6 +278,10 @@ func (s *masterSession) SetMute(v bool, silent bool) error {
 		s.logger.Debugw("Setting master mute state", "muted", v)
 	}
 	return nil
+}
+
+func (s *masterSession) ProcessPath() string {
+	return ""
 }
 
 func (s *masterSession) Release() {

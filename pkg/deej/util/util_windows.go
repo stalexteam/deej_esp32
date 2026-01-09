@@ -10,6 +10,11 @@ import (
 	"github.com/mitchellh/go-ps"
 )
 
+var (
+	modkernel32           = syscall.NewLazyDLL("kernel32.dll")
+	procQueryFullProcessImageNameW = modkernel32.NewProc("QueryFullProcessImageNameW")
+)
+
 const (
 	getCurrentWindowInternalCooldown = time.Millisecond * 350
 )
@@ -93,4 +98,35 @@ func getCurrentWindowProcessNames() ([]string, error) {
 	// cache & return whichever executable names we ended up with
 	lastGetCurrentWindowResult = result
 	return result, nil
+}
+
+// GetProcessPath returns the full path to the executable for the given process ID
+func GetProcessPath(pid int) (string, error) {
+	// Open process handle with query information access
+	handle, err := syscall.OpenProcess(syscall.PROCESS_QUERY_INFORMATION, false, uint32(pid))
+	if err != nil {
+		// Try with limited information access (for processes running with different privileges)
+		handle, err = syscall.OpenProcess(0x1000, false, uint32(pid)) // PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+		if err != nil {
+			return "", fmt.Errorf("open process: %w", err)
+		}
+	}
+	defer syscall.CloseHandle(handle)
+
+	// Query full process image name
+	buf := make([]uint16, win.MAX_PATH)
+	size := uint32(len(buf))
+	
+	ret, _, _ := procQueryFullProcessImageNameW.Call(
+		uintptr(handle),
+		0, // PROCESS_NAME_NATIVE format
+		uintptr(unsafe.Pointer(&buf[0])),
+		uintptr(unsafe.Pointer(&size)),
+	)
+	
+	if ret == 0 {
+		return "", fmt.Errorf("QueryFullProcessImageNameW failed")
+	}
+
+	return syscall.UTF16ToString(buf[:size]), nil
 }

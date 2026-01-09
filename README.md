@@ -13,7 +13,8 @@ Key improvements:
 * **Choice of transport layer**: users can now connect via a USB-UART cable or wirelessly over Wi-Fi.
 * Multiple Deej software instances can connect to the same mixer over Wi-Fi simultaneously.
 * Easy integration into **Home Assistant** (e.g., dimmer control).
-
+* Mute switches support
+* Path-based process matching support (e.q. c:\Program Files (x86)\Steam)
 You can select your preferred transport in the configuration. If both are configured, the software will attempt UART first. If UART connection fails (port doesn't exist) and SSE is configured, it will fallback to Wi-Fi SSE. If UART port is busy (already in use), the software will stop and notify you instead of falling back to SSE.
 
 ---
@@ -84,6 +85,7 @@ Optional things (uncomment to activate):
   * Quit deej
 * **Logging**: All logs are saved to `logs/deej-latest-run.log` for troubleshooting.
   * **Audio devices list**: At startup, deej logs all available audio input/output devices. Check the log file to see device names that can be used in `config.yaml` for device targeting (Windows only).
+* **Path-based process matching**: In addition to matching processes by name (e.g., `chrome.exe`), you can now specify directory paths in `slider_mapping`. All processes launched from the specified directory or its subdirectories will be controlled by that slider. This is useful for grouping applications from the same installation directory (e.g., `C:\Program Files (x86)\Steam` on Windows or `/usr/bin/steam` on Linux). Paths are automatically detected and matched case-insensitively on Windows and case-sensitively on Linux.
 
 ### Command-line Options
 

@@ -159,7 +159,10 @@ func (m *sessionMap) setupOnConfigReload() {
 		for {
 			<-configReloadedChannel
 			m.logger.Info("Detected config reload, attempting to re-acquire all audio sessions")
-			m.refreshSessions(false)
+			// Use force=true to ensure sessions are refreshed even if minTimeBetweenSessionRefreshes hasn't passed.
+			// This is critical when paths are added/removed/changed in the config, as we need to re-evaluate
+			// all sessions against the new mapping immediately.
+			m.refreshSessions(true)
 		}
 	}()
 }
@@ -243,9 +246,18 @@ func (m *sessionMap) sessionMapped(session Session) bool {
 			// safe to assume this has a single element because we made sure there's no special transform
 			target = m.resolveTarget(target)[0]
 
-			if target == session.Key() {
-				matchFound = true
-				return
+			if util.IsPath(target) {
+				// Match by path
+				if util.PathMatches(session.ProcessPath(), target) {
+					matchFound = true
+					return
+				}
+			} else {
+				// process name?
+				if target == session.Key() {
+					matchFound = true
+					return
+				}
 			}
 		}
 	})
@@ -282,22 +294,37 @@ func (m *sessionMap) handleSliderMoveEvent(event SliderMoveEvent) {
 		// for each resolved target...
 		for _, resolvedTarget := range resolvedTargets {
 
-			// check the map for matching sessions
-			sessions, ok := m.get(resolvedTarget)
+			if util.IsPath(resolvedTarget) {
+				// Match by path
+				m.iterateAllSessions(func(session Session) {
+					if util.PathMatches(session.ProcessPath(), resolvedTarget) {
+						targetFound = true
+						if session.GetVolume() != event.PercentValue {
+							if err := session.SetVolume(event.PercentValue); err != nil {
+								m.logger.Warnw("Failed to set target session volume", "error", err)
+								adjustmentFailed = true
+							}
+						}
+					}
+				})
+			} else {
+				// Match by process name (?)
+				sessions, ok := m.get(resolvedTarget)
 
-			// no sessions matching this target - move on
-			if !ok {
-				continue
-			}
+				// no sessions matching this target - move on
+				if !ok {
+					continue
+				}
 
-			targetFound = true
+				targetFound = true
 
-			// iterate all matching sessions and adjust the volume of each one
-			for _, session := range sessions {
-				if session.GetVolume() != event.PercentValue {
-					if err := session.SetVolume(event.PercentValue); err != nil {
-						m.logger.Warnw("Failed to set target session volume", "error", err)
-						adjustmentFailed = true
+				// iterate all matching sessions and adjust the volume of each one
+				for _, session := range sessions {
+					if session.GetVolume() != event.PercentValue {
+						if err := session.SetVolume(event.PercentValue); err != nil {
+							m.logger.Warnw("Failed to set target session volume", "error", err)
+							adjustmentFailed = true
+						}
 					}
 				}
 			}
@@ -343,19 +370,36 @@ func (m *sessionMap) handleSwitchEvent(event SwitchEvent) {
 		resolvedTargets := m.resolveTarget(target)
 
 		for _, resolvedTarget := range resolvedTargets {
-			sessions, ok := m.get(resolvedTarget)
-			if !ok {
-				continue
-			}
+			if util.IsPath(resolvedTarget) {
+				// Match by path
+				m.iterateAllSessions(func(session Session) {
+					if util.PathMatches(session.ProcessPath(), resolvedTarget) {
+						targetFound = true
+						currentMute := session.GetMute()
+						if currentMute != state {
+							if err := session.SetMute(state, false); err != nil {
+								m.logger.Warnw("Failed to set mute state for target session", "error", err)
+								actionFailed = true
+							}
+						}
+					}
+				})
+			} else {
+				// Match by process name (?)
+				sessions, ok := m.get(resolvedTarget)
+				if !ok {
+					continue
+				}
 
-			targetFound = true
+				targetFound = true
 
-			for _, session := range sessions {
-				currentMute := session.GetMute()
-				if currentMute != state {
-					if err := session.SetMute(state, false); err != nil {
-						m.logger.Warnw("Failed to set mute state for target session", "error", err)
-						actionFailed = true
+				for _, session := range sessions {
+					currentMute := session.GetMute()
+					if currentMute != state {
+						if err := session.SetMute(state, false); err != nil {
+							m.logger.Warnw("Failed to set mute state for target session", "error", err)
+							actionFailed = true
+						}
 					}
 				}
 			}
@@ -458,6 +502,17 @@ func (m *sessionMap) clear() {
 	}
 
 	m.logger.Debug("Session map cleared")
+}
+
+func (m *sessionMap) iterateAllSessions(f func(Session)) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	for _, sessions := range m.m {
+		for _, session := range sessions {
+			f(session)
+		}
+	}
 }
 
 func (m *sessionMap) String() string {

@@ -8,6 +8,7 @@ import (
 	ole "github.com/go-ole/go-ole"
 	ps "github.com/mitchellh/go-ps"
 	wca "github.com/moutend/go-wca"
+	"github.com/stalexteam/deej_esp32/pkg/deej/util"
 	"go.uber.org/zap"
 )
 
@@ -19,6 +20,7 @@ type wcaSession struct {
 
 	pid         uint32
 	processName string
+	processPath string
 
 	control *wca.IAudioSessionControl2
 	volume  *wca.ISimpleAudioVolume
@@ -77,6 +79,14 @@ func newWCASession(
 		s.processName = process.Executable()
 		s.name = s.processName
 		s.humanReadableDesc = fmt.Sprintf("%s (pid %d)", s.processName, s.pid)
+		
+		// Try get the full process path
+		if processPath, err := util.GetProcessPath(int(s.pid)); err == nil {
+			s.processPath = processPath
+		} else {
+			logger.Debugw("Failed to get process path, will use process name only", "pid", s.pid, "error", err)
+			s.processPath = ""
+		}
 	}
 
 	// use a self-identifying session name e.g. deej.sessions.chrome
@@ -175,6 +185,10 @@ func (s *wcaSession) Release() {
 	s.control.Release()
 }
 
+func (s *wcaSession) ProcessPath() string {
+	return s.processPath
+}
+
 func (s *wcaSession) String() string {
 	return fmt.Sprintf(sessionStringFormat, s.humanReadableDesc, s.GetVolume())
 }
@@ -242,6 +256,10 @@ func (s *masterSession) Release() {
 	s.logger.Debug("Releasing audio session")
 
 	s.volume.Release()
+}
+
+func (s *masterSession) ProcessPath() string {
+	return "" // none!
 }
 
 func (s *masterSession) String() string {

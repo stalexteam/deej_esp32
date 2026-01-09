@@ -15,6 +15,7 @@ type Session interface {
 	SetMute(v bool, silent bool) error
 
 	Key() string
+	ProcessPath() string
 	Release()
 }
 

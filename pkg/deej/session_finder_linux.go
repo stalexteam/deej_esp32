@@ -3,8 +3,10 @@ package deej
 import (
 	"fmt"
 	"net"
+	"strconv"
 
 	"github.com/jfreymuth/pulse/proto"
+	"github.com/stalexteam/deej_esp32/pkg/deej/util"
 	"go.uber.org/zap"
 )
 
@@ -82,10 +84,26 @@ func (sf *paSessionFinder) GetAllDevices() ([]AudioDeviceInfo, error) {
 	sinkReply := proto.GetSinkInfoListReply{}
 	if err := sf.client.Request(&sinkRequest, &sinkReply); err == nil {
 		for _, sink := range sinkReply {
+			if sink == nil {
+				continue
+			}
+			// GetSinkInfoReply has SinkName field, use it as name
+			name := sink.SinkName
+			if name == "" {
+				name = fmt.Sprintf("Sink %d", sink.SinkIndex)
+			}
+			
+			description := ""
+			if sink.Properties != nil {
+				if descProp, ok := sink.Properties["device.description"]; ok {
+					description = descProp.String()
+				}
+			}
+			
 			devices = append(devices, AudioDeviceInfo{
-				Name:        sink.Name,
+				Name:        name,
 				Type:        "Output",
-				Description: sink.Description,
+				Description: description,
 			})
 		}
 	}
@@ -95,14 +113,32 @@ func (sf *paSessionFinder) GetAllDevices() ([]AudioDeviceInfo, error) {
 	sourceReply := proto.GetSourceInfoListReply{}
 	if err := sf.client.Request(&sourceRequest, &sourceReply); err == nil {
 		for _, source := range sourceReply {
-			// Skip monitor sources (they're virtual)
-			if source.MonitorOfSink == proto.Undefined {
-				devices = append(devices, AudioDeviceInfo{
-					Name:        source.Name,
-					Type:        "Input",
-					Description: source.Description,
-				})
+			if source == nil {
+				continue
 			}
+			// Skip monitor sources (virtual)
+			if source.MonitorSourceIndex != proto.Undefined {
+				continue
+			}
+			
+			name := source.SourceName
+			if name == "" {
+				name = fmt.Sprintf("Source %d", source.SourceIndex)
+			}
+			
+			description := ""
+			// get description if available
+			if source.Properties != nil {
+				if descProp, ok := source.Properties["device.description"]; ok {
+					description = descProp.String()
+				}
+			}
+			
+			devices = append(devices, AudioDeviceInfo{
+				Name:        name,
+				Type:        "Input",
+				Description: description,
+			})
 		}
 	}
 
@@ -173,8 +209,22 @@ func (sf *paSessionFinder) enumerateAndAddSessions(sessions *[]Session) error {
 			continue
 		}
 
+		// Try to get PID from PulseAudio properties
+		var processPath string
+		if pidProp, ok := info.Properties["application.process.id"]; ok {
+			// PropListEntry has a String() method to get the value
+			pidStr := pidProp.String()
+			if pidStr != "" {
+				if pid, err := strconv.Atoi(pidStr); err == nil {
+					if path, err := util.GetProcessPath(pid); err == nil {
+						processPath = path
+					}
+				}
+			}
+		}
+
 		// create the deej session object
-		newSession := newPASession(sf.sessionLogger, sf.client, info.SinkInputIndex, info.Channels, name.String())
+		newSession := newPASession(sf.sessionLogger, sf.client, info.SinkInputIndex, info.Channels, name.String(), processPath)
 
 		// add it to our slice
 		*sessions = append(*sessions, newSession)

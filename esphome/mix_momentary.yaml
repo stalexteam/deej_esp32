@@ -1,8 +1,8 @@
 substitutions:
-  debounce_interval: 30ms
   adc_attenuation: 12db #Options: 6db, 12db. depends on max possible voltage on ADC pins.
-  update_interval: 10ms
-  adc_samples: 16       #JFYI: max sample rate about 6k
+  debounce_interval: 30
+  throtle_interval: 75
+  update_interval: 10
 
 esphome:
   name: mix
@@ -20,12 +20,12 @@ esphome:
     - mix_tools.hpp
     - mix_tools.cpp
 
-# uncomment to use extra_uart
-#  on_boot: 
-#    then:
-#      - lambda: |-
-#          set_extra_uart(extra_uart);
-      
+  on_boot: 
+    then:
+      - lambda: |-
+         //set_extra_uart(extra_uart); // uncomment to use extra_uart
+         set_vref(vref);
+  
 esp32:
   board: esp32-s3-devkitc-1
   variant: ESP32S3  
@@ -95,7 +95,7 @@ logger:
   level: WARN
   baud_rate: 115200
 
-# Optional: Enable extra uart which can be used for extra wired communications (alse, uncomment on_boot section, and USE_EXTRA_UART in mix_tools.h!)
+# Optional: Enable extra uart which can be used for extra wired communications (alse, uncomment set_extra_uart in on_boot section, and USE_EXTRA_UART in mix_tools.h!)
 #uart:
 #  - id: extra_uart
 #    tx_pin: GPIO17
@@ -178,7 +178,7 @@ sensor:
     internal: true
     pin: GPIO8
     attenuation: ${adc_attenuation}
-    update_interval: ${update_interval}
+    update_interval: ${update_interval}ms
     samples: ${adc_samples}
     raw: true
 
@@ -187,122 +187,114 @@ sensor:
     internal: true
     pin: GPIO1
     attenuation: ${adc_attenuation}
-    update_interval: ${update_interval}
+    update_interval: ${update_interval}ms
     samples: ${adc_samples}
     raw: true
+    on_value:
+      then:
+        - lambda: |-
+            process_pot(0, id(s0_v), id(pot0), (uint16_t)x, ${update_interval}, ${throtle_interval}, false);
 
   - platform: adc
     id: s1_v
     internal: true
     pin: GPIO2
     attenuation: ${adc_attenuation}
-    update_interval: ${update_interval}
+    update_interval: ${update_interval}ms
     samples: ${adc_samples}
     raw: true
+    on_value:
+      then:
+        - lambda: |-
+            process_pot(1, id(s1_v), id(pot1), (uint16_t)x, ${update_interval}, ${throtle_interval}, false);
 
   - platform: adc
     id: s2_v
     internal: true
     pin: GPIO4
     attenuation: ${adc_attenuation}
-    update_interval: ${update_interval}
+    update_interval: ${update_interval}ms
     samples: ${adc_samples}
     raw: true
+    on_value:
+      then:
+        - lambda: |-
+            process_pot(2, id(s2_v), id(pot2), (uint16_t)x, ${update_interval}, ${throtle_interval}, false);
 
   - platform: adc
     id: s3_v
     internal: true
     pin: GPIO5
     attenuation: ${adc_attenuation}
-    update_interval: ${update_interval}
+    update_interval: ${update_interval}ms
     samples: ${adc_samples}
     raw: true
+    on_value:
+      then:
+        - lambda: |-
+            process_pot(3, id(s3_v), id(pot3), (uint16_t)x, ${update_interval}, ${throtle_interval}, false);
 
   - platform: adc
     id: s4_v
     internal: true
     pin: GPIO6
     attenuation: ${adc_attenuation}
-    update_interval: ${update_interval}
+    update_interval: ${update_interval}ms
     samples: ${adc_samples}
     raw: true
+    on_value:
+      then:
+        - lambda: |-
+            process_pot(4, id(s4_v), id(pot4), (uint16_t)x, ${update_interval}, ${throtle_interval}, false);
 
   - platform: adc
     id: s5_v
     internal: true
     pin: GPIO7
     attenuation: ${adc_attenuation}
-    update_interval: ${update_interval}
+    update_interval: ${update_interval}ms
     samples: ${adc_samples}
     raw: true
+    on_value:
+      then:
+        - lambda: |-
+            process_pot(5, id(s5_v), id(pot5), (uint16_t)x, ${update_interval}, ${throtle_interval}, false);
 
   - platform: template
     id: pot0
     name: "pot0"
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    update_interval: ${update_interval}
-    lambda: |-
-      return process_pot(0, (uint16_t)(id(s0_v).state), (uint16_t)(id(vref).state), false);
-    filters:
-      - delta: .5
 
   - platform: template
     id: pot1
     name: "pot1"
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    update_interval: ${update_interval}
-    lambda: |-
-      return process_pot(1, (uint16_t)(id(s1_v).state), (uint16_t)(id(vref).state), false);
-    filters:
-      - delta: .5
-
 
   - platform: template
     id: pot2
     name: "pot2"
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    update_interval: ${update_interval}
-    lambda: |-
-      return process_pot(2, (uint16_t)(id(s2_v).state), (uint16_t)(id(vref).state), false);
-    filters:
-      - delta: .5
 
   - platform: template
     id: pot3
     name: "pot3"
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    update_interval: ${update_interval}
-    lambda: |-
-      return process_pot(3, (uint16_t)(id(s3_v).state), (uint16_t)(id(vref).state), false);
-    filters:
-      - delta: .5
 
   - platform: template
     id: pot4
     name: "pot4"
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    update_interval: ${update_interval}
-    lambda: |-
-      return process_pot(4, (uint16_t)(id(s4_v).state), (uint16_t)(id(vref).state), false);
-    filters:
-      - delta: .5
 
   - platform: template
     id: pot5
     name: "pot5"
     unit_of_measurement: "%"
     accuracy_decimals: 0
-    update_interval: ${update_interval}
-    lambda: |-
-      return process_pot(5, (uint16_t)(id(s5_v).state), (uint16_t)(id(vref).state), false);
-    filters:
-      - delta: .5
-
   - platform: wifi_signal
     id: wifi_signal_db
     internal: true
