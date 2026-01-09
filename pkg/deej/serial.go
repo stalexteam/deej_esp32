@@ -320,6 +320,19 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 	// Remove ANSI escape sequences
 	clean := stripANSI(line)
 
+	// Trim whitespace and newlines
+	trimmed := strings.TrimSpace(clean)
+
+	// Check if line is a pure JSON string (starts with { and ends with })
+	if len(trimmed) > 0 && trimmed[0] == '{' && trimmed[len(trimmed)-1] == '}' {
+		// Try to parse as pure JSON
+		if sio.deej.Verbose() {
+			logger.Debugw("Pure JSON line detected", "json", trimmed)
+		}
+		sio.deej.handleStateEvent(logger, []byte(trimmed))
+		return
+	}
+
 	// Extract JSON from log tag format
 	m := jsonLogRegexp.FindStringSubmatch(clean)
 	if m == nil {
@@ -329,7 +342,7 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 	jsonPayload := m[1]
 
 	if sio.deej.Verbose() {
-		logger.Debugw("JSON payload received", "json", jsonPayload)
+		logger.Debugw("JSON payload received from log format", "json", jsonPayload)
 	}
 
 	// Use the common handleStateEvent from deej.go

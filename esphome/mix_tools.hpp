@@ -2,17 +2,31 @@
 #include <stdint.h>
 #include "esphome.h"
 
+//#define USE_EXTRA_UART // uncomment to use extra_uart
 #define MIXER_POT_COUNT_MAX 32
 #define MIXER_SW_COUNT_MAX 32
 #define MIXER_HYST 3   // 0.3%
+// External declarations
+extern int mixer_pot_value[MIXER_POT_COUNT_MAX];
+extern int mixer_pot_max_id;
 
-static int mixer_pot_value[MIXER_POT_COUNT_MAX] = {0};
-static int mixer_pot_max_id = -1;
-static inline void hostsend_pot(int id) {
-    ESP_LOGW("json", "{\"id\":\"sensor-pot%d\",\"value\":%d}", id, (int)(mixer_pot_value[id] / 10));
+#ifdef USE_EXTRA_UART
+extern esphome::uart::UARTComponent *global_extra_uart;
+#endif
+inline void hostsend_pot(int id) {
+    char buf[64] = {0, };
+    snprintf(buf, sizeof(buf), "{\"id\":\"sensor-pot%d\",\"value\":%d}\n", id, (int)(mixer_pot_value[id] / 10));
+    
+    ESP_LOGW("json", buf);
+    #ifdef USE_EXTRA_UART
+    if (global_extra_uart != nullptr){
+        global_extra_uart->write_str(buf); 
+        global_extra_uart->write_str("\n");
+    }
+    #endif
 }
 
-static inline int process_pot(
+inline int process_pot(
     uint16_t pot_id,
     uint16_t pot_raw,
     uint16_t vref_raw,
@@ -41,14 +55,23 @@ static inline int process_pot(
     return mixer_pot_value[pot_id] / 10;
 }
 
-
-static bool mixer_sw_state[MIXER_SW_COUNT_MAX] = {false};
-static int mixer_sw_max_id = -1;
+extern bool mixer_sw_state[MIXER_SW_COUNT_MAX];
+extern int mixer_sw_max_id;
 inline void hostsend_sw(int id) {
-    ESP_LOGW("json", "{\"id\":\"binary_sensor-sw%d\",\"value\":%s}", id, mixer_sw_state[id] ? "true" : "false");
+    char buf[64] = {0, };
+    snprintf(buf, sizeof(buf), "{\"id\":\"binary_sensor-sw%d\",\"value\":%s}", id, mixer_sw_state[id] ? "true" : "false");
+   
+    ESP_LOGW("json", buf);
+    #ifdef USE_EXTRA_UART
+    if (global_extra_uart != nullptr){
+        global_extra_uart->write_str(buf); 
+        global_extra_uart->write_str("\n");
+    }
+    #endif
+    
 }
 
-static inline bool process_sw(int sw_id, bool value) {
+inline bool process_sw(int sw_id, bool value) {
     if (sw_id >= MIXER_SW_COUNT_MAX)
         return value;
 
@@ -61,10 +84,9 @@ static inline bool process_sw(int sw_id, bool value) {
     }
     
     return value;
-
 }
 
-static inline void hostsend_all() {
+inline void hostsend_all() {
     for (int i = 0; i <= mixer_pot_max_id; i++) {
         hostsend_pot(i);
     }
@@ -72,3 +94,9 @@ static inline void hostsend_all() {
         hostsend_sw(i);
     }
 }
+
+#ifdef USE_EXTRA_UART
+inline void set_extra_uart(esphome::uart::UARTComponent *uart_obj) {
+    global_extra_uart = uart_obj;
+}
+#endif

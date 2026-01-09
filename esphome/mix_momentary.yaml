@@ -17,7 +17,14 @@ esphome:
     name: esphome.web
     version: stable
   includes:
-    - mix_tools.h
+    - mix_tools.hpp
+    - mix_tools.cpp
+
+# uncomment to use extra_uart
+#  on_boot: 
+#    then:
+#      - lambda: |-
+#          set_extra_uart(extra_uart);
       
 esp32:
   board: esp32-s3-devkitc-1
@@ -87,6 +94,13 @@ web_server:
 logger:
   level: WARN
   baud_rate: 115200
+
+# Optional: Enable extra uart which can be used for extra wired communications (alse, uncomment on_boot section, and USE_EXTRA_UART in mix_tools.h!)
+#uart:
+#  - id: extra_uart
+#    tx_pin: GPIO17
+#    rx_pin: GPIO16
+#    baud_rate: 115200 
 
 # Optional: Enable Home Assistant API (you can use sliders/switches to control your HA devices)
 # api:

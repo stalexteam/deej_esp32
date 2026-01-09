@@ -22,11 +22,11 @@ You can select your preferred transport in the configuration. If both are config
 
 To build and flash the ESP32, you’ll need **ESPHome**.
 There are ready-to-use Docker containers and plenty of guides available online — setting it up shouldn’t be a problem.
-It's a bit tricky because you'll need to put a header (mix_tools.h) file to the config folder, but і think - you can handle it.
+It's a bit tricky because you'll need to put header (mix_tools.hpp) and source (mix_tools.cpp) files to the config folder, but і think - you can handle it.
 
 If you use HA, everything is [extremely simple](https://drive.google.com/file/d/1BMy3CoxtEZqwKd2B-B0Jz64usQFDXO8t/view?usp=sharing) (through the espome plugin).
 
-The ESP32 device configuration (`mix_*.yaml`) and the corresponding header file (`mix_tools.h`)
+The ESP32 device configuration (`mix_*.yaml`) and the corresponding header and source files (`mix_tools.hpp` and `mix_tools.cpp`)
 are located in this repository under:
 
 
@@ -113,6 +113,13 @@ You can now choose how Deej communicates with your mixer:
 * One computer is connected to the ESP32 via USB-UART cable and communicates with it exclusively over serial (configure only UART port and baud rate in `config.yaml`).
 * Other computers on the same network can connect to the same ESP32 device over Wi-Fi using SSE (configure only SSE URL in their `config.yaml`).
 * This allows one primary controller via UART while enabling additional computers to monitor or control the mixer wirelessly over the network.
+
+### 4. Multiple Wired Setup (Multiple computers, one ESP32)
+* Multiple computers can use one ESP32 device via USB-UART converters connected to `extra_uart`.
+* Each computer runs an independent instance of Deej with its own serial port configuration (configure only UART port and baud rate in each computer's `config.yaml`).
+* **Activation conditions:**
+  1. Enable the `USE_EXTRA_UART` define in `mix_tools.hpp` (uncomment line 5: `#define USE_EXTRA_UART`).
+  2. Uncomment the `on_boot:` and `uart:` sections in the YAML configuration file.
 
 ---
 
