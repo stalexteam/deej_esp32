@@ -94,32 +94,72 @@ Optional things (uncomment to activate):
 
 ## 🔌 Transport Options
 
-You can now choose how Deej communicates with your mixer:
+You can now choose how Deej communicates with your mixer. Each option has its own benefits and configuration requirements:
 
 ### 1. Wired UART (Serial)
 
-* Connect the ESP32 to your PC using a USB cable.
-* Configure port and baud rate in Deej.
-* Reliable for low-latency setups or when Wi-Fi is unavailable.
+**Brief description:** The simplest way to use Deej — one mixer, one PC.
+
+**Benefits:**
+* Stable connection with low latency
+* No Wi-Fi required
+* Simple setup without additional components
+
+**Requirements:**
+* Connect ESP32 to your computer via USB cable
+* Configure `SERIAL_Port` and `SERIAL_BaudRate` correctly in `config.yaml` (format: `COMx` on Windows or `/dev/ttyUSBx`, `/dev/ttyACMx` on Linux)
+
+---
 
 ### 2. Wi-Fi / Server-Sent Events (SSE)
 
-* Use the ESPHome Event Source API to transmit data over Wi-Fi.
-* Supports multiple Deej clients connecting simultaneously.
-* No drivers needed for Windows, macOS, or Linux.
-* Integrates easily with Home Assistant.
+**Brief description:** When ESP32 requires independent power supply.
 
-### 3. Hybrid Setup (ESP32 is connected to a Wi-Fi network)
-* One computer is connected to the ESP32 via USB-UART cable and communicates with it exclusively over serial (configure only UART port and baud rate in `config.yaml`).
-* Other computers on the same network can connect to the same ESP32 device over Wi-Fi using SSE (configure only SSE URL in their `config.yaml`).
-* This allows one primary controller via UART while enabling additional computers to monitor or control the mixer wirelessly over the network.
+**Benefits:**
+* ESP32 can be always powered and available (Suitable for Home Assistant integration)
+* Multiple Deej instances can connect to the same mixer simultaneously
+* No drivers needed for Windows or Linux
 
-### 4. Multiple Wired Setup (Multiple computers, one ESP32)
-* Multiple computers can use one ESP32 device via USB-UART converters connected to `extra_uart`.
-* Each computer runs an independent instance of Deej with its own serial port configuration (configure only UART port and baud rate in each computer's `config.yaml`).
-* **Activation conditions:**
-  1. Enable the `USE_EXTRA_UART` define in `mix_tools.hpp` (uncomment line 5: `#define USE_EXTRA_UART`).
-  2. Uncomment the `on_boot:` and `uart:` sections in the YAML configuration file.
+**Requirements:**
+* Connect ESP32 to the same network as your end devices
+* Configure `SSE_URL` in `config.yaml` (format: `http://hostname:port/events` or `http://ip-address:port/events`)
+* Ensure ESP32 is connected to a Wi-Fi network
+
+---
+
+### 3. Hybrid Setup
+
+**Brief description:** When options 1 or 2 don't quite fit your needs.
+
+**Benefits:**
+* Combines benefits of options 1 and 2
+* ESP32 is powered and connected to one computer via UART
+* Additional computers can connect over Wi-Fi via SSE
+
+**Requirements:**
+* Combination of requirements from options 1 and 2
+
+---
+
+### 4. Multi-Wired
+
+**Brief description:** When you were punished by Wi-Fi as a child, and now you're wary of it.
+
+**Benefits:**
+* Wired connection to multiple PCs simultaneously
+* Each computer works independently through its own UART channel
+* Maximum stability and low latency for all connections
+
+**Requirements:**
+* **Additional components:**
+  * UART isolators (for galvanic isolation)
+  * Isolated DC-DC converters (for power supply)
+  * USB-UART converters (one per computer, excluding the PC that ESP32 is directly connected to)
+* **ESP32 configuration:**
+  * Enable `USE_EXTRA_UART` define in `mix_tools.hpp` (uncomment line 5: `#define USE_EXTRA_UART`)
+  * Uncomment `on_boot:` and `uart:` sections in ESP32 YAML configuration
+* **Each computer's configuration:**
+  * Configure `SERIAL_Port` and `SERIAL_BaudRate` in each computer's `config.yaml`
 
 ---
 
