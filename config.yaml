@@ -26,7 +26,7 @@ invert_sliders: false
 #  4: discord.exe
 #  5: helloworld.exe
 slider_mapping:
-  0: 
+  0: master
   1:
   2:
   3:
