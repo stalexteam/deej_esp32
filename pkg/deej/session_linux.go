@@ -110,8 +110,6 @@ func (s *paSession) GetVolume() float32 {
 }
 
 func (s *paSession) SetVolume(v float32) error {
-	var WasMuted bool = s.GetMute()
-
 	volumes := createChannelVolumes(s.sinkInputChannels, v)
 	request := proto.SetSinkInputVolume{
 		SinkInputIndex: s.sinkInputIndex,
@@ -123,8 +121,13 @@ func (s *paSession) SetVolume(v float32) error {
 		return fmt.Errorf("adjust session volume: %w", err)
 	}
 
-	if WasMuted {
-		s.SetMute(true, true)
+	// Get actual mute state from transport channel after volume change
+	currentMute := s.GetMute()
+	
+	// Mute if volume = 0, otherwise use state from transport channel
+	shouldMute := v == 0 || currentMute
+	if shouldMute != currentMute {
+		s.SetMute(shouldMute, true)
 	}
 
 	s.logger.Debugw("Adjusting session volume", "to", fmt.Sprintf("%.2f", v))
@@ -205,8 +208,6 @@ func (s *masterSession) GetVolume() float32 {
 }
 
 func (s *masterSession) SetVolume(v float32) error {
-	var WasMuted bool = s.GetMute()
-
 	volumes := createChannelVolumes(s.streamChannels, v)
 	var request proto.RequestArgs
 
@@ -227,8 +228,13 @@ func (s *masterSession) SetVolume(v float32) error {
 		return fmt.Errorf("adjust session volume: %w", err)
 	}
 
-	if WasMuted {
-		s.SetMute(true, true)
+	// Get actual mute state from transport channel after volume change
+	currentMute := s.GetMute()
+	
+	// Mute if volume = 0, otherwise use state from transport channel
+	shouldMute := v == 0 || currentMute
+	if shouldMute != currentMute {
+		s.SetMute(shouldMute, true)
 	}
 
 	s.logger.Debugw("Adjusting master volume", "to", fmt.Sprintf("%.2f", v))

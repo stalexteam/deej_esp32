@@ -1,32 +1,5 @@
-
-# set this to true if you want the controls inverted (i.e. top is 0%, bottom is 100%)
+# probably youre looking for pkg/deej/scripts/misc/default-config.yaml ?
 invert_sliders: false
-
-#sliders used to control the volume of specific applications/interface.
-# process names are case-insensitive 
-# you can use directory paths. All processes launched from the specified directory or its subdirectories will be controlled by that slider.
-# you can use 'master' to indicate the master channel, or a list of process names to create a group
-# you can use 'mic' to control your mic input level (uses the default recording device)
-# you can use 'deej.unmapped' to control all apps that aren't bound to any slider (this ignores master, system, mic and device-targeting sessions)
-# windows only - you can use 'deej.current' to control the currently active app (whether full-screen or not)
-# windows only - you can use a device's full name, i.e. "Speakers (Realtek High Definition Audio)", to bind it. this works for both output and input devices
-# windows only - you can use 'system' to control the "system sounds" volume
-# important: slider indexes start at 0, regardless of which analog pins you're using!
-#
-# To get a list of all available audio devices (useful for device targeting), check the log file:
-# Look for "Available audio devices" entries in logs/deej-latest-run.log
-# The device names shown in the log can be used directly in slider_mapping or switches_mapping.
-
-#example mapping:
-#slider_mapping:
-#  0: master
-#  1: chrome.exe
-#  2: spotify.exe
-#  3:
-#    - pathofexile_x64.exe
-#    - rocketleague.exe
-#  4: discord.exe
-#  5: C:\Program Files (x86)\Steam
 slider_mapping:
   0:
   1:
@@ -35,17 +8,6 @@ slider_mapping:
   4:
   5:
 
-# slider_override allows you to set constant volume levels for specific sliders.
-# This is useful for "muting" a slider's readings from ESP32 for a specific endpoint in a specific configuration (config file was replaced externally)
-# If a value is not set (empty or missing), the slider will use the value received from ESP32.
-# If a value is set, that constant value will be used instead of the ESP32 reading.
-#
-# Example:
-# slider_override:
-#   0:        # Slider 0: no override, use ESP32 value
-#   1: 100    # Slider 1: always use 100%
-#   2:        # Slider 2: no override, use ESP32 value
-#   3: 50     # Slider 3: always use 50%
 slider_override:
   0: 
   1:
@@ -54,17 +16,7 @@ slider_override:
   4:
   5:
 
-# set this to true if you want the mute switches inverted
 invert_switches: false
-
-# switches used to mute/unmute input/output.
-#switches_mapping:
-#  0: JBL TUNE770NC Hands-Free AG Audio
-#  1:
-#  2:
-#  3:
-#  4:
-#  5:
 switches_mapping:
   0: 
   1:
@@ -74,30 +26,6 @@ switches_mapping:
   5:
 
 
-# ConnectionInfo contains settings for I/O interfaces (transport layers)
-# You can configure either Serial UART (SERIAL_Port, SERIAL_BaudRate) or SSE (SSE_URL) transport layers here.
-#
-# TRANSPORT SELECTION LOGIC (at startup and on config reload):
-# - If both Serial and SSE are configured: Deej will try Serial first, fall back to SSE if Serial fails (port doesn't exist).
-# - If Serial port is busy (already in use): Deej will stop instead of falling back to SSE.
-# - If only one is configured: Deej will use that one.
-# - If neither is configured: Deej will notify and stop.
-#
-# CONFIG RELOAD BEHAVIOR (when you save this file):
-# - Transport switching: If you change from Serial to SSE (or vice versa), Deej will automatically switch interfaces.
-# - Parameter changes: If you change Serial port/baud rate or SSE URL, Deej will reconnect with new parameters.
-# - Optimization: If transport parameters haven't changed, Deej will NOT reconnect (even if other config like slider_mapping changed).
-#   This prevents unnecessary reconnections when you only modify audio mappings or other non-transport settings.
-# - Removing active transport: If you remove the currently active transport but another transport is configured,
-#   Deej will automatically switch to the available transport. Deej will only stop if BOTH transports are removed.
-
-# Serial UART interface as transport layer
-# Format: COMx (Windows) or /dev/ttyUSBx, /dev/ttyACMx (Linux)
-# Leave empty or set to 0 to disable Serial transport
 SERIAL_Port: COM18
 SERIAL_BaudRate: 115200
-
-# Server-Sent Events (SSE) as transport layer
-# Format: http://hostname:port/events or http://ip-address:port/events
-# Leave empty to disable SSE transport
 SSE_URL: http://mix.local/events

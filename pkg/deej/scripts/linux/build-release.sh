@@ -1,21 +1,31 @@
 #!/bin/sh
 
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+. "$SCRIPT_DIR/../common.sh"
+
+REPO_ROOT=$(find_repo_root)
+cd "$REPO_ROOT" || { echo "Failure: Could not enter repository root"; exit 1; }
+
 echo 'Building deej (release)...'
 
-# shove git commit, version tag into env
-GIT_COMMIT=$(git rev-list -1 --abbrev-commit HEAD)
-VERSION_TAG=$(git describe --tags --always)
-BUILD_TYPE=release
-echo 'Embedding build-time parameters:'
-echo "- gitCommit $GIT_COMMIT"
-echo "- versionTag $VERSION_TAG"
-echo "- buildType $BUILD_TYPE"
+reset_versioninfo
 
-go build -o deej-release -ldflags "-s -w -X main.gitCommit=$GIT_COMMIT -X main.versionTag=$VERSION_TAG -X main.buildType=$BUILD_TYPE" ./pkg/deej/cmd
+MAJOR_MINOR=$(get_version_major_minor)
+BUILD=$(get_git_build_count)
+VERSION_TAG="v${MAJOR_MINOR}.${BUILD}"
+
+GIT_COMMIT=$(get_git_commit)
+
+BUILD_TYPE=release
+echo "Embedding: gitCommit=$GIT_COMMIT, versionTag=$VERSION_TAG, buildType=$BUILD_TYPE"
+
+mkdir -p build
+
+go build -o build/deej-release -ldflags "-s -w -X main.gitCommit=$GIT_COMMIT -X main.versionTag=$VERSION_TAG -X main.buildType=$BUILD_TYPE" ./pkg/deej/cmd
 if [ $? -eq 0 ]; then
     echo 'Done.'
+    echo 'Output: build/deej-release'
 else
-    echo 'Error: "go build" exited with a non-zero code. Are you running this script from the root deej directory?'
+    echo 'Build failed!'
     exit 1
 fi
-

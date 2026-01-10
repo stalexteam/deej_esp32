@@ -130,14 +130,9 @@ func (s *wcaSession) GetVolume() float32 {
 }
 
 func (s *wcaSession) SetVolume(v float32) error {
-	var WasMuted bool = s.GetMute()
 	if err := s.volume.SetMasterVolume(v, s.eventCtx); err != nil {
 		s.logger.Warnw("Failed to set session volume", "error", err)
 		return fmt.Errorf("adjust session volume: %w", err)
-	}
-
-	if WasMuted {
-		s.SetMute(true, true)
 	}
 
 	// mitigate expired sessions by checking the state whenever we change volumes
@@ -150,6 +145,15 @@ func (s *wcaSession) SetVolume(v float32) error {
 	if state == wca.AudioSessionStateExpired {
 		s.logger.Warnw("Audio session expired, triggering session refresh")
 		return errRefreshSessions
+	}
+
+	// Get actual mute state from transport channel after volume change
+	currentMute := s.GetMute()
+	
+	// Mute if volume = 0, otherwise use state from transport channel
+	shouldMute := v == 0 || currentMute
+	if shouldMute != currentMute {
+		s.SetMute(shouldMute, true)
 	}
 
 	s.logger.Debugw("Adjusting session volume", "to", fmt.Sprintf("%.2f", v))
@@ -209,7 +213,6 @@ func (s *masterSession) SetVolume(v float32) error {
 		return errRefreshSessions
 	}
 
-	var WasMuted bool = s.GetMute()
 	if err := s.volume.SetMasterVolumeLevelScalar(v, s.eventCtx); err != nil {
 		s.logger.Warnw("Failed to set session volume",
 			"error", err,
@@ -218,9 +221,15 @@ func (s *masterSession) SetVolume(v float32) error {
 		return fmt.Errorf("adjust session volume: %w", err)
 	}
 
-	if WasMuted {
-		s.SetMute(true, true)
+	// Get actual mute state from transport channel after volume change
+	currentMute := s.GetMute()
+	
+	// Mute if volume = 0, otherwise use state from transport channel
+	shouldMute := v == 0 || currentMute
+	if shouldMute != currentMute {
+		s.SetMute(shouldMute, true)
 	}
+
 	s.logger.Debugw("Adjusting session volume", "to", fmt.Sprintf("%.2f", v))
 
 	return nil

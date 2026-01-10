@@ -6,7 +6,7 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 REPO_ROOT=$(find_repo_root)
 cd "$REPO_ROOT" || { echo "Failure: Could not enter repository root"; exit 1; }
 
-echo 'Building deej (development)...'
+echo "Building deej for Windows (development)..."
 
 reset_versioninfo
 
@@ -21,10 +21,10 @@ echo "Embedding: gitCommit=$GIT_COMMIT, versionTag=$VERSION_TAG, buildType=$BUIL
 
 mkdir -p build
 
-go build -o build/deej-dev -ldflags "-X main.gitCommit=$GIT_COMMIT -X main.versionTag=$VERSION_TAG -X main.buildType=$BUILD_TYPE" ./pkg/deej/cmd
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/deej-dev.exe -ldflags "-X main.gitCommit=$GIT_COMMIT -X main.versionTag=$VERSION_TAG -X main.buildType=$BUILD_TYPE" ./pkg/deej/cmd
 if [ $? -eq 0 ]; then
     echo 'Done.'
-    echo 'Output: build/deej-dev'
+    echo 'Output: build/deej-dev.exe'
 else
     echo 'Build failed!'
     exit 1
