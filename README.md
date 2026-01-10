@@ -241,10 +241,17 @@ Use a small PN diode to drop ≈ 0.2–0.7 V
 
 ## 💡 Hints
 
-* Avoid **ADC3** — it’s internally reserved.
 * **GPIO 8** is used as the "ADC maximum" reference input.
 * to use mute/unmute (sw0..sw5) just connect any switch/latching/momentary button between GPIO9..GPIO14 and GND and configure binary_sensor section in yaml, and, switches_mapping section in deej config.
 * status led (blue) states: constantly ON = wifi not configured; blinking = connecting/not connected; constantly OFF = connected
+
+### Non-recommended GPIO pins (ESP32-S3-N16R8)
+
+| Function | GPIO Numbers (Pins on the board) | Reason for non-use |
+|----------|----------------------------------|-------------------|
+| Analog Input (with Wi-Fi ON) | GPIO12-GPIO18 | Belong to ADC2, which is occupied when using Wi-Fi. |
+| Digital Input (Boot/Flash Conflicts) | GPIO3, GPIO6-GPIO11, GPIO45, GPIO46, GPIO48 | Are strapping pins or used for internal SPI Flash/PSRAM. External use can cause boot failure. |
+
 
 ---
 
