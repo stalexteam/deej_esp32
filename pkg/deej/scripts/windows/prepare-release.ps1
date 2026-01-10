@@ -29,10 +29,7 @@ catch {
 Write-Host "Reading version from versioninfo.cfg..." -ForegroundColor Yellow
 $VersionInfo = Get-VersionInfo -RepoRoot $RepoRoot
 $Major = $VersionInfo.Major
-$Minor = $VersionInfo.Minor
-
-$Minor = $Minor + 1
-Write-Host "Incremented Minor: $Minor" -ForegroundColor Green
+$CurrentMinor = $VersionInfo.Minor
 
 Write-Host "Getting build number from git..." -ForegroundColor Yellow
 $Build = Get-GitBuildCount
@@ -42,13 +39,65 @@ if ($Build -eq 0) {
 }
 Write-Host "Build number: $Build" -ForegroundColor Green
 
+$GitCommit = Get-GitCommit
+
+if (-not $SkipBuild) {
+    Write-Host ""
+    Write-Host "Building with current version..." -ForegroundColor Yellow
+    
+    $CurrentVersionInfo = @{
+        Major = $Major
+        Minor = $CurrentMinor
+        Build = $Build
+    }
+    $CurrentVersionTag = Get-VersionTag -VersionInfo $CurrentVersionInfo -Build $Build
+    Write-Host "Building with version: $CurrentVersionTag" -ForegroundColor Gray
+    
+    Write-Host "Building development version..." -ForegroundColor Yellow
+    Write-Host "Embedding: gitCommit=$GitCommit, versionTag=$CurrentVersionTag, buildType=dev" -ForegroundColor Gray
+    
+    $buildResult = Invoke-Build -RepoRoot $RepoRoot -BuildType "dev" -OutputFile "deej-dev.exe" -VersionTag $CurrentVersionTag -GitCommit $GitCommit -NoExit
+    
+    if (-not $buildResult) {
+        Write-Host ""
+        Write-Host "Build failed, cleaning up..." -ForegroundColor Red
+        git checkout -- "$VersionInfoFile" 2>&1 | Out-Null
+        Write-Error "Failed to build development version"
+        exit 1
+    }
+    
+    Write-Host ""
+    Write-Host "Building release version..." -ForegroundColor Yellow
+    Write-Host "Embedding: gitCommit=$GitCommit, versionTag=$CurrentVersionTag, buildType=release" -ForegroundColor Gray
+    
+    $buildResult = Invoke-Build -RepoRoot $RepoRoot -BuildType "release" -OutputFile "deej-release.exe" -VersionTag $CurrentVersionTag -GitCommit $GitCommit -NoExit
+    
+    if (-not $buildResult) {
+        Write-Host ""
+        Write-Host "Build failed, cleaning up..." -ForegroundColor Red
+        git checkout -- "$VersionInfoFile" 2>&1 | Out-Null
+        Write-Error "Failed to build release version"
+        exit 1
+    }
+    
+    Write-Host ""
+    Write-Host "Build successful, incrementing Minor..." -ForegroundColor Green
+    $Minor = $CurrentMinor + 1
+    Write-Host "New Minor: $Minor" -ForegroundColor Green
+}
+else {
+    Write-Host ""
+    Write-Host "Skipping build, incrementing Minor..." -ForegroundColor Yellow
+    $Minor = $CurrentMinor + 1
+    Write-Host "New Minor: $Minor" -ForegroundColor Green
+}
+
 $UpdatedVersionInfo = @{
     Major = $Major
     Minor = $Minor
     Build = $Build
 }
 $VersionTag = Get-VersionTag -VersionInfo $UpdatedVersionInfo -Build $Build
-$GitCommit = Get-GitCommit
 
 Write-Host ""
 Write-Host "Version tag: $VersionTag" -ForegroundColor Cyan
@@ -67,52 +116,11 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-if (-not $SkipBuild) {
-    Write-Host ""
-    Write-Host "Building development version..." -ForegroundColor Yellow
-    Write-Host "Embedding: gitCommit=$GitCommit, versionTag=$VersionTag, buildType=dev" -ForegroundColor Gray
-    
-    $buildResult = Invoke-Build -RepoRoot $RepoRoot -BuildType "dev" -OutputFile "deej-dev.exe" -VersionTag $VersionTag -GitCommit $GitCommit -NoExit
-    
-    if (-not $buildResult) {
-        Write-Host ""
-        Write-Host "Build failed, cleaning up..." -ForegroundColor Red
-        git checkout -- "$VersionInfoFile" 2>&1 | Out-Null
-        git tag --delete "$VersionTag" 2>&1 | Out-Null
-        Write-Error "Failed to build development version"
-        exit 1
-    }
-    
-    Write-Host ""
-    Write-Host "Building release version..." -ForegroundColor Yellow
-    Write-Host "Embedding: gitCommit=$GitCommit, versionTag=$VersionTag, buildType=release" -ForegroundColor Gray
-    
-    $buildResult = Invoke-Build -RepoRoot $RepoRoot -BuildType "release" -OutputFile "deej-release.exe" -VersionTag $VersionTag -GitCommit $GitCommit -NoExit
-    
-    if (-not $buildResult) {
-        Write-Host ""
-        Write-Host "Build failed, cleaning up..." -ForegroundColor Red
-        git checkout -- "$VersionInfoFile" 2>&1 | Out-Null
-        git tag --delete "$VersionTag" 2>&1 | Out-Null
-        Write-Error "Failed to build release version"
-        exit 1
-    }
-    
-    Write-Host ""
-    Write-Host "Build successful, updating versioninfo.cfg..." -ForegroundColor Green
-    $UpdatedVersionInfoJson = $UpdatedVersionInfo | ConvertTo-Json -Compress
-    $UpdatedVersionInfoJson = $UpdatedVersionInfoJson + "`n"
-    Set-Content -Path $VersionInfoFile -Value $UpdatedVersionInfoJson -NoNewline
-    Write-Host "Updated: Major=$Major, Minor=$Minor, Build=$Build" -ForegroundColor Green
-}
-else {
-    Write-Host ""
-    Write-Host "Skipping build, updating versioninfo.cfg..." -ForegroundColor Yellow
-    $UpdatedVersionInfoJson = $UpdatedVersionInfo | ConvertTo-Json -Compress
-    $UpdatedVersionInfoJson = $UpdatedVersionInfoJson + "`n"
-    Set-Content -Path $VersionInfoFile -Value $UpdatedVersionInfoJson -NoNewline
-    Write-Host "Updated: Major=$Major, Minor=$Minor, Build=$Build" -ForegroundColor Green
-}
+Write-Host "Updating versioninfo.cfg..." -ForegroundColor Yellow
+$UpdatedVersionInfoJson = $UpdatedVersionInfo | ConvertTo-Json -Compress
+$UpdatedVersionInfoJson = $UpdatedVersionInfoJson + "`n"
+Set-Content -Path $VersionInfoFile -Value $UpdatedVersionInfoJson -NoNewline
+Write-Host "Updated: Major=$Major, Minor=$Minor, Build=$Build" -ForegroundColor Green
 
 $ReleaseDir = Join-Path $RepoRoot "releases\$VersionTag"
 Write-Host ""
