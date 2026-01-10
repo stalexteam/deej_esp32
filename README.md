@@ -250,7 +250,7 @@ Use a small PN diode to drop ≈ 0.2–0.7 V
 | Function | GPIO Numbers (Pins on the board) | Reason for non-use |
 |----------|----------------------------------|-------------------|
 | Analog Input (with Wi-Fi ON) | GPIO12-GPIO18 | Belong to ADC2, which is occupied when using Wi-Fi. |
-| Digital Input (Boot) | GPIO3, GPIO45, GPIO46, GPIO48 | Could cause boot issues when tied to GND. |
+| Boot | GPIO3, GPIO45, GPIO46, GPIO48 | Could cause boot issues when tied to GND. |
 
 
 
