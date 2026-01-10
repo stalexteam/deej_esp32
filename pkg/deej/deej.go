@@ -67,6 +67,12 @@ type Deej struct {
 
 	// Synchronization for I/O operations
 	ioMutex sync.Mutex // Protects io field and startIO() calls
+
+	// State storage for SSE server
+	stateMutex   sync.RWMutex                      // Protects state maps
+	sensorStates map[string]map[string]interface{} // id -> state data
+	switchStates map[string]map[string]interface{} // id -> state data
+	sseServer    *SseServer
 }
 
 // NewDeej creates a Deej instance
@@ -93,6 +99,8 @@ func NewDeej(logger *zap.SugaredLogger, verbose bool) (*Deej, error) {
 		verbose:             verbose,
 		sliderMoveConsumers: []chan SliderMoveEvent{},
 		switchConsumers:     []chan SwitchEvent{},
+		sensorStates:        make(map[string]map[string]interface{}),
+		switchStates:        make(map[string]map[string]interface{}),
 	}
 
 	serial, err := NewSerialIO(d, logger)
@@ -109,6 +117,14 @@ func NewDeej(logger *zap.SugaredLogger, verbose bool) (*Deej, error) {
 		return nil, fmt.Errorf("create new SseIO: %w", err)
 	}
 	d.sse = sse
+
+	// Initialize SSE server
+	sseServer, err := NewSseServer(d, logger)
+	if err != nil {
+		logger.Errorw("Failed to create SseServer", "error", err)
+		return nil, fmt.Errorf("create new SseServer: %w", err)
+	}
+	d.sseServer = sseServer
 
 	sessionFinder, err := newSessionFinder(logger)
 	if err != nil {
@@ -194,6 +210,15 @@ func (d *Deej) run() {
 	// connect to the SERIAL/SSE endpoint for the first time
 	go d.startIO()
 
+	// start SSE server if configured
+	if d.config.ConnectionInfo.SSE_RELAY_PORT > 0 {
+		if err := d.sseServer.Start(); err != nil {
+			d.logger.Warnw("Failed to start SSE server", "error", err)
+		} else {
+			d.logger.Infow("SSE server started", "port", d.config.ConnectionInfo.SSE_RELAY_PORT)
+		}
+	}
+
 	// wait until stopped (gracefully)
 	<-d.stopChannel
 	d.logger.Debug("Stop channel signaled, terminating")
@@ -236,6 +261,11 @@ func (d *Deej) stop() error {
 
 	// Close all event channels to signal goroutines to exit
 	d.closeEventChannels()
+
+	// Stop SSE server if running
+	if d.sseServer != nil {
+		d.sseServer.Stop()
+	}
 
 	// release the session map
 	if err := d.sessions.release(); err != nil {
@@ -287,6 +317,29 @@ func (d *Deej) handleStateEvent(logger *zap.SugaredLogger, data []byte) {
 		return
 	}
 
+	// Save state for SSE server
+	d.stateMutex.Lock()
+	// Check if this is a sensor (pot) or switch
+	if strings.HasPrefix(id, "sensor-") || strings.HasPrefix(id, "binary_sensor-") {
+		// Make a copy of the state data for storage
+		stateCopy := make(map[string]interface{})
+		for k, v := range raw {
+			stateCopy[k] = v
+		}
+		// Determine if it's a sensor or switch based on prefix
+		if strings.HasPrefix(id, "binary_sensor-") {
+			d.switchStates[id] = stateCopy
+		} else {
+			d.sensorStates[id] = stateCopy
+		}
+	}
+	d.stateMutex.Unlock()
+
+	// Notify SSE server about state change
+	if d.sseServer != nil {
+		d.sseServer.NotifyStateChange(id, raw)
+	}
+
 	// ---- POTENTIOMETER
 	if m := potPattern.FindStringSubmatch(id); len(m) == 2 {
 		var val float64
@@ -304,7 +357,7 @@ func (d *Deej) handleStateEvent(logger *zap.SugaredLogger, data []byte) {
 		}
 
 		idx, _ := strconv.Atoi(m[1])
-		
+
 		// Check if there's an override value for this slider
 		var n float32
 		if overridePercent, hasOverride := d.config.SliderOverride[idx]; hasOverride {
@@ -322,7 +375,7 @@ func (d *Deej) handleStateEvent(logger *zap.SugaredLogger, data []byte) {
 				n = 1
 			}
 		}
-		
+
 		if d.config.InvertSliders {
 			n = 1 - n
 		}
@@ -506,6 +559,42 @@ func (d *Deej) setupOnConfigReload() {
 	go func() {
 		for {
 			<-configReloadedChannel
+
+			// Handle SSE server port changes (independent of I/O interface)
+			newPort := d.config.ConnectionInfo.SSE_RELAY_PORT
+			if d.sseServer != nil {
+				currentPort := d.sseServer.GetCurrentPort()
+				isRunning := d.sseServer.IsRunning()
+
+				if newPort <= 0 {
+					// Port removed or set to 0 - stop server and disconnect all clients
+					if isRunning {
+						d.logger.Info("SSE_RELAY_PORT removed or set to 0, stopping SSE server")
+						d.sseServer.Stop()
+					}
+				} else if newPort != currentPort {
+					// Port changed - restart server on new port (will disconnect all clients)
+					if isRunning {
+						d.logger.Infow("SSE_RELAY_PORT changed, restarting SSE server", "old_port", currentPort, "new_port", newPort)
+						d.sseServer.Stop()
+						// Wait a bit for graceful shutdown
+						time.Sleep(100 * time.Millisecond)
+					}
+					// Start on new port
+					if err := d.sseServer.Start(); err != nil {
+						d.logger.Warnw("Failed to start SSE server after port change", "port", newPort, "error", err)
+					} else {
+						d.logger.Infow("SSE server restarted on new port", "port", newPort)
+					}
+				} else if !isRunning && newPort > 0 {
+					// Port is set but server not running - start it
+					if err := d.sseServer.Start(); err != nil {
+						d.logger.Warnw("Failed to start SSE server", "port", newPort, "error", err)
+					} else {
+						d.logger.Infow("SSE server started", "port", newPort)
+					}
+				}
+			}
 
 			// Acquire lock to prevent concurrent startIO() calls
 			d.ioMutex.Lock()

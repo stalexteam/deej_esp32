@@ -12,7 +12,7 @@ import (
 
 	// go get github.com/stalexteam/eventsource_go
 	// or
-	// go get github.com/stalexteam/eventsource_go@4d77736460a2d341ffd706e7f4d796171a5c6eb3
+	// go get github.com/stalexteam/eventsource_go@058ea8a0213a
 	eventsource "github.com/stalexteam/eventsource_go"
 	"go.uber.org/zap"
 )
@@ -299,6 +299,11 @@ func (sio *SseIO) connect(logger *zap.SugaredLogger) error {
 			sio.es = nil
 		}
 		sio.mu.Unlock()
+
+		// Use IsConnectionError for better error classification
+		if eventsource.IsConnectionError(readErr) {
+			return fmt.Errorf("SSE connection error: %w", readErr)
+		}
 		return fmt.Errorf("SSE read error: %w", readErr)
 	}
 
@@ -444,9 +449,17 @@ func (sio *SseIO) run(logger *zap.SugaredLogger) error {
 					if !errors.Is(err, eventsource.ErrEmptyLine) {
 						connected := atomic.LoadInt32(&sio.connected) == 1
 						if connected {
-							eventLogger.Debugw("SSE read error", "error", err)
+							// Use IsConnectionError for better error classification
+							if eventsource.IsConnectionError(err) {
+								eventLogger.Debugw("SSE connection error", "error", err)
+							} else {
+								eventLogger.Debugw("SSE read error", "error", err)
+							}
 						}
 						// Connection lost, return to trigger reconnect
+						if eventsource.IsConnectionError(err) {
+							return fmt.Errorf("sse connection error: %w", err)
+						}
 						return fmt.Errorf("sse read error: %w", err)
 					}
 					// Empty line is not an error, continue reading

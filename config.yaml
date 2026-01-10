@@ -29,3 +29,4 @@ switches_mapping:
 SERIAL_Port: COM18
 SERIAL_BaudRate: 115200
 SSE_URL: http://mix.local/events
+#SSE_RELAY_PORT: 8080

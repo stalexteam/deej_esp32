@@ -13,7 +13,7 @@ require (
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/moutend/go-wca v0.1.2-0.20190422112502-0fa027b3d89a
 	github.com/spf13/viper v1.7.1
-	github.com/stalexteam/eventsource_go v0.0.0-20260109050910-4d77736460a2
+	github.com/stalexteam/eventsource_go v0.0.0-20260110022914-058ea8a0213a
 	github.com/thoas/go-funk v0.7.0
 	go.uber.org/zap v1.15.0
 )

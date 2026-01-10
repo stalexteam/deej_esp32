@@ -21,6 +21,7 @@ type CanonicalConfig struct {
 
 	ConnectionInfo struct {
 		SSE_URL         string
+		SSE_RELAY_PORT  int
 		SERIAL_Port     string
 		SERIAL_BaudRate int
 	}
@@ -58,10 +59,12 @@ const (
 	configKey_SliderOverride = "slider_override"
 
 	configKey_SSE_URL         = "SSE_URL"
+	configKey_SSE_RELAY_PORT  = "SSE_RELAY_PORT"
 	configKey_SERIAL_PORT     = "SERIAL_Port"
 	configKey_SERIAL_BaudRate = "SERIAL_BaudRate"
 
 	default_SSE_URL         = "" //http://mix.local/events
+	default_SSE_RELAY_PORT  = 0
 	default_SERIAL_PORT     = ""
 	default_SERIAL_BaudRate = 0
 )
@@ -92,6 +95,7 @@ func NewConfig(logger *zap.SugaredLogger, notifier Notifier) (*CanonicalConfig, 
 	userConfig.SetDefault(configKey_InvertSwitches, false)
 	userConfig.SetDefault(configKey_SliderOverride, map[string]interface{}{})
 	userConfig.SetDefault(configKey_SSE_URL, default_SSE_URL)
+	userConfig.SetDefault(configKey_SSE_RELAY_PORT, default_SSE_RELAY_PORT)
 	userConfig.SetDefault(configKey_SERIAL_PORT, default_SERIAL_PORT)
 	userConfig.SetDefault(configKey_SERIAL_BaudRate, default_SERIAL_BaudRate)
 
@@ -214,7 +218,7 @@ func (cc *CanonicalConfig) WatchConfigFileChanges() {
 // StopWatchingConfigFile signals our filesystem watcher to stop
 func (cc *CanonicalConfig) StopWatchingConfigFile() {
 	cc.stopWatcherChannel <- true
-	
+
 	// Close all reload consumer channels to signal goroutines to exit
 	cc.closeReloadChannels()
 }
@@ -242,6 +246,7 @@ func (cc *CanonicalConfig) populateFromVipers() error {
 	)
 
 	cc.ConnectionInfo.SSE_URL = cc.userConfig.GetString(configKey_SSE_URL)
+	cc.ConnectionInfo.SSE_RELAY_PORT = cc.userConfig.GetInt(configKey_SSE_RELAY_PORT)
 	cc.ConnectionInfo.SERIAL_Port = cc.userConfig.GetString(configKey_SERIAL_PORT)
 	cc.ConnectionInfo.SERIAL_BaudRate = cc.userConfig.GetInt(configKey_SERIAL_BaudRate)
 

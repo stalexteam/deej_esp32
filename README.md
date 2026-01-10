@@ -169,6 +169,29 @@ If UART port is busy (already in use), the software will stop and notify you ins
 
 ---
 
+### 5. deej as Data Source (Relay Mode)
+
+**Brief description:** When you don't trust Wi-Fi, but Ethernet cables are your thing.
+
+**Benefits:**
+* Combines benefits of options 1 and 2
+* Use wired Ethernet, Wi-Fi, or even expose data to WAN — flexibility is key
+* One deej instance acts as a relay, proxying ESP32 data to multiple clients
+* Perfect for scenarios where ESP32 connects via UART to one PC, but other PCs need access too
+
+**Requirements:**
+* Requirements from option 1 **OR** option 2 (ESP32 must connect to the relay host)
+* Configure `SSE_RELAY_PORT` in the relay host's `config.yaml` (the deej instance connected to ESP32)
+* Configure `SSE_URL` on client computers that want to receive data from the relay host
+* Ensure relay host and clients are reachable over your network (same LAN, VLAN, or WAN if properly configured)
+
+**Example setup:**
+* ESP32 connected via UART to host PC at IP `192.168.1.3`
+* On the host PC, set `SSE_RELAY_PORT: 8080` in `config.yaml`
+* On client PCs, set `SSE_URL: http://192.168.1.3:8080/events` (or use hostname if you've finally learned to use DHCP properly)
+
+---
+
 ## 🧾 Bill of Materials
 
 | Qty | Item                 | Link                                                                |

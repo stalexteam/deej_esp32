@@ -56,7 +56,7 @@ slider_override:
   5:
 
 # parameters: SERIAL_Port, SERIAL_BaudRate, SSE_URL
-# Used to configure Serial UART (SERIAL_Port, SERIAL_BaudRate) and SSE (SSE_URL) transport layers.
+# Used to configure Serial UART (SERIAL_Port, SERIAL_BaudRate) and SSE (SSE_URL) transport layers (data receive).
 #
 # TRANSPORT SELECTION LOGIC (at startup and on config reload):
 # - If both Serial and SSE are configured: Deej will try Serial first, fall back to SSE if Serial fails (port doesn't exist).
@@ -82,3 +82,8 @@ SERIAL_BaudRate: 115200
 # Format: http://hostname:port/events or http://ip-address:port/events
 # Leave empty to disable SSE transport
 SSE_URL: http://mix.local/events
+
+# SSE relay port - enables deej as data source for other deej instances (data transmit)
+# When configured, this deej instance will act as an SSE server, proxying ESP32 data to other clients
+# Leave empty, comment-out or set to 0 to disable SSE relay server
+#SSE_RELAY_PORT: 8080
