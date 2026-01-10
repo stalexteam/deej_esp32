@@ -6,7 +6,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Get-RepoRoot
 $VersionInfoFile = Join-Path $RepoRoot "versioninfo.cfg"
 
@@ -81,23 +80,23 @@ if (-not $SkipBuild) {
     }
     
     Write-Host ""
-    Write-Host "Build successful, incrementing Minor..." -ForegroundColor Green
-    $Minor = $CurrentMinor + 1
-    Write-Host "New Minor: $Minor" -ForegroundColor Green
+    Write-Host "Build successful!" -ForegroundColor Green
+    
+    # Use current version for tag (the version we built with)
+    $VersionTag = $CurrentVersionTag
 }
 else {
     Write-Host ""
-    Write-Host "Skipping build, incrementing Minor..." -ForegroundColor Yellow
-    $Minor = $CurrentMinor + 1
-    Write-Host "New Minor: $Minor" -ForegroundColor Green
+    Write-Host "Skipping build..." -ForegroundColor Yellow
+    
+    # If skipping build, use current version from versioninfo
+    $CurrentVersionInfo = @{
+        Major = $Major
+        Minor = $CurrentMinor
+        Build = $Build
+    }
+    $VersionTag = Get-VersionTag -VersionInfo $CurrentVersionInfo -Build $Build
 }
-
-$UpdatedVersionInfo = @{
-    Major = $Major
-    Minor = $Minor
-    Build = $Build
-}
-$VersionTag = Get-VersionTag -VersionInfo $UpdatedVersionInfo -Build $Build
 
 Write-Host ""
 Write-Host "Version tag: $VersionTag" -ForegroundColor Cyan
@@ -115,12 +114,6 @@ if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to create git tag"
     exit 1
 }
-
-Write-Host "Updating versioninfo.cfg..." -ForegroundColor Yellow
-$UpdatedVersionInfoJson = $UpdatedVersionInfo | ConvertTo-Json -Compress
-$UpdatedVersionInfoJson = $UpdatedVersionInfoJson + "`n"
-Set-Content -Path $VersionInfoFile -Value $UpdatedVersionInfoJson -NoNewline
-Write-Host "Updated: Major=$Major, Minor=$Minor, Build=$Build" -ForegroundColor Green
 
 $ReleaseDir = Join-Path $RepoRoot "releases\$VersionTag"
 Write-Host ""
@@ -162,6 +155,23 @@ if (Test-Path $EspHomeDir) {
     Copy-Item -Path "$EspHomeDir\*" -Destination $ReleaseDir -Recurse -Force
     Write-Host "  - esphome/* -> (release root)" -ForegroundColor Green
 }
+
+Write-Host ""
+Write-Host "Incrementing Minor for next release..." -ForegroundColor Yellow
+$Minor = $CurrentMinor + 1
+Write-Host "New Minor: $Minor" -ForegroundColor Green
+
+Write-Host ""
+Write-Host "Updating versioninfo.cfg..." -ForegroundColor Yellow
+$UpdatedVersionInfo = @{
+    Major = $Major
+    Minor = $Minor
+    Build = $Build
+}
+$UpdatedVersionInfoJson = $UpdatedVersionInfo | ConvertTo-Json -Compress
+$UpdatedVersionInfoJson = $UpdatedVersionInfoJson + "`n"
+Set-Content -Path $VersionInfoFile -Value $UpdatedVersionInfoJson -NoNewline
+Write-Host "Updated: Major=$Major, Minor=$Minor, Build=$Build" -ForegroundColor Green
 
 Write-Host ""
 Write-Host "Committing changes..." -ForegroundColor Yellow
