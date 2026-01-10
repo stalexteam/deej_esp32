@@ -83,7 +83,7 @@ inline void process_pot(
     }
 }
 
-extern bool mixer_sw_state[MIXER_SW_COUNT_MAX];
+extern int mixer_sw_state[MIXER_SW_COUNT_MAX];
 extern int mixer_sw_max_id;
 inline void hostsend_sw(int id) {
     char buf[64] = {0, };
@@ -106,8 +106,8 @@ inline bool process_sw(int sw_id, bool value) {
     if (mixer_sw_max_id < sw_id)
         mixer_sw_max_id = sw_id;
 
-    if (mixer_sw_state[sw_id] != value){
-        mixer_sw_state[sw_id] = value;
+    if (mixer_sw_state[sw_id] != (int)value){
+        mixer_sw_state[sw_id] = (int)value;
         hostsend_sw(sw_id);
     }
     
