@@ -7,7 +7,7 @@ This document describes the ESPHome-based firmware for the ESP32 mixer.
 ## Platform & Framework
 
 * **Framework**: [ESPHome](https://esphome.io/) (ESP-IDF based)
-* **Minimum ESPHome version**: 2024.11.0
+* **Minimum ESPHome version**: 2025.12.5
 
 ESPHome provides a YAML-based configuration system that makes it easy to customize firmware behavior without writing C++ code. However, this project includes custom C++ components (`mix_tools.hpp` and `mix_tools.cpp`) for advanced functionality.
 
