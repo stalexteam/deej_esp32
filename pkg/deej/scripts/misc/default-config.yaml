@@ -55,6 +55,81 @@ slider_override:
   4:
   5:
 
+# button_actions allows you to configure physical buttons on the mixer to trigger various actions.
+# Buttons support three action types: single click, double click, and long press.
+#
+# Configuration structure:
+#   button_actions:
+#     cancel_on_reload: false  # If true, all running actions are cancelled when config is reloaded (default: false)
+#     <button_id>:             # Button ID (0-5, matching btn0-btn5 on ESP32)
+#       single:                # Single click action (optional)
+#         exclusive: true      # If true, new presses are ignored while action is running (default: true)
+#         steps:               # List of action steps to execute sequentially
+#           - type: execute    # Run an application
+#             app: "notepad.exe"
+#             args: []         # Optional command-line arguments
+#             wait: false      # Wait for completion (default: false)
+#             wait_timeout: 0  # Timeout in ms for wait: true (0 = infinite, default: 0)
+#             wait_wnd:        # Wait for window (Windows only, only with wait: false)
+#               timeout: 1000  # Timeout in ms (required)
+#               focused: true  # Check if window is focused (optional, default: false)
+#               title: "Notepad"  # Window title filter (optional)
+#           - type: delay      # Wait for specified duration
+#             ms: 500          # Duration in milliseconds (required, must be > 0)
+#           - type: keystroke  # Simulate keyboard input
+#             keys: "Ctrl+Alt+T"  # Key combination (required)
+#           - type: typing     # Type text character by character
+#             text: "Hello World\n"  # Text to type (required, supports \n, \t, \r, \\)
+#             char_delay: 50   # Delay between characters in ms (optional, default: 0 on Linux, 1ms minimum on Windows)
+#       double:                # Double click action (optional, same structure as single)
+#         exclusive: true
+#         steps: []
+#       long:                  # Long press action (optional, same structure as single)
+#         exclusive: true
+#         steps: []
+#
+# Example:
+# button_actions:
+#   cancel_on_reload: false
+#   0:
+#     single:
+#       exclusive: true
+#       steps:
+#         - type: execute
+#           app: "notepad.exe"
+#           wait_wnd:
+#             timeout: 1000
+#             focused: true
+#         - type: typing
+#           text: "Hello from deej!\n"
+#   1:
+#     single:
+#       exclusive: true
+#       steps:
+#         - type: keystroke
+#           keys: "Ctrl+Alt+T"
+#     double:
+#       exclusive: true
+#       steps:
+#         - type: execute
+#           app: "calc.exe"
+#   2:
+#     long:
+#       exclusive: true
+#       steps:
+#         - type: delay
+#           ms: 1000
+#         - type: typing
+#           text: "Long press action\n"
+button_actions:
+  cancel_on_reload: false
+  0:
+  1:
+  2:
+  3:
+  4:
+  5:
+
 # parameters: SERIAL_Port, SERIAL_BaudRate, SSE_URL
 # Used to configure Serial UART (SERIAL_Port, SERIAL_BaudRate) and SSE (SSE_URL) transport layers (data receive).
 #

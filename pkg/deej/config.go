@@ -18,6 +18,7 @@ import (
 type CanonicalConfig struct {
 	SliderMapping   *sliderMap
 	SwitchesMapping *switchMap
+	ButtonsMapping  *buttonsMap
 
 	ConnectionInfo struct {
 		SSE_URL         string
@@ -53,6 +54,7 @@ const (
 
 	configKey_SliderMapping   = "slider_mapping"
 	configKey_SwitchesMapping = "switches_mapping"
+	configKey_ButtonActions   = "button_actions"
 
 	configKey_InvertSliders  = "invert_sliders"
 	configKey_InvertSwitches = "invert_switches"
@@ -91,6 +93,7 @@ func NewConfig(logger *zap.SugaredLogger, notifier Notifier) (*CanonicalConfig, 
 
 	userConfig.SetDefault(configKey_SliderMapping, map[string][]string{})
 	userConfig.SetDefault(configKey_SwitchesMapping, map[string][]string{})
+	userConfig.SetDefault(configKey_ButtonActions, map[string]interface{}{})
 	userConfig.SetDefault(configKey_InvertSliders, false)
 	userConfig.SetDefault(configKey_InvertSwitches, false)
 	userConfig.SetDefault(configKey_SliderOverride, map[string]interface{}{})
@@ -147,6 +150,7 @@ func (cc *CanonicalConfig) Load() error {
 	cc.logger.Infow("Config values",
 		"sliderMapping", cc.SliderMapping,
 		"switchesMapping", cc.SwitchesMapping,
+		"buttonsMapping", cc.ButtonsMapping,
 		"connectionInfo", cc.ConnectionInfo,
 		"invertSliders", cc.InvertSliders,
 		"invertSwitches", cc.InvertSwitches,
@@ -244,6 +248,9 @@ func (cc *CanonicalConfig) populateFromVipers() error {
 		cc.userConfig.GetStringMapStringSlice(configKey_SwitchesMapping),
 		cc.internalConfig.GetStringMapStringSlice(configKey_SwitchesMapping),
 	)
+
+	// Load button actions configuration
+	cc.ButtonsMapping = buttonsMapFromConfig(cc.userConfig, cc.logger)
 
 	cc.ConnectionInfo.SSE_URL = cc.userConfig.GetString(configKey_SSE_URL)
 	cc.ConnectionInfo.SSE_RELAY_PORT = cc.userConfig.GetInt(configKey_SSE_RELAY_PORT)

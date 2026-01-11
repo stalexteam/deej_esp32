@@ -1,5 +1,5 @@
-// Package deej provides a machine-side client that pairs with an Arduino
-// chip to form a tactile, physical volume control system/
+// Package deej provides a machine-side client that pairs with an ESP32
+// mixer to form a tactile, physical volume control system.
 package deej
 
 import (
@@ -43,6 +43,7 @@ type IOInterface interface {
 var (
 	potPattern = regexp.MustCompile(`^sensor-pot(\d+)$`)
 	swPattern  = regexp.MustCompile(`^binary_sensor-sw(\d+)$`)
+	btnStateID = "text_sensor-last_btn_state"
 )
 
 // Deej is the main entity managing access to all sub-components
@@ -73,6 +74,9 @@ type Deej struct {
 	sensorStates map[string]map[string]interface{} // id -> state data
 	switchStates map[string]map[string]interface{} // id -> state data
 	sseServer    *SseServer
+
+	// Button handler
+	buttonHandler *ButtonHandler
 }
 
 // NewDeej creates a Deej instance
@@ -140,6 +144,14 @@ func NewDeej(logger *zap.SugaredLogger, verbose bool) (*Deej, error) {
 
 	d.sessions = sessions
 
+	// Initialize button handler
+	buttonHandler, err := NewButtonHandler(d, logger)
+	if err != nil {
+		logger.Errorw("Failed to create ButtonHandler", "error", err)
+		return nil, fmt.Errorf("create new ButtonHandler: %w", err)
+	}
+	d.buttonHandler = buttonHandler
+
 	logger.Debug("Created deej instance")
 
 	return d, nil
@@ -153,6 +165,11 @@ func (d *Deej) Initialize() error {
 	if err := d.config.Load(); err != nil {
 		d.logger.Errorw("Failed to load config during initialization", "error", err)
 		return fmt.Errorf("load config during init: %w", err)
+	}
+
+	// Update button handler configuration
+	if d.buttonHandler != nil && d.config.ButtonsMapping != nil {
+		d.buttonHandler.UpdateConfig(d.config.ButtonsMapping)
 	}
 
 	// initialize the session map
@@ -262,6 +279,12 @@ func (d *Deej) stop() error {
 	// Close all event channels to signal goroutines to exit
 	d.closeEventChannels()
 
+	// Cancel all running button actions
+	if d.buttonHandler != nil {
+		d.logger.Debug("Cancelling all running button actions on shutdown")
+		d.buttonHandler.CancelAllActions()
+	}
+
 	// Stop SSE server if running
 	if d.sseServer != nil {
 		d.sseServer.Stop()
@@ -319,16 +342,19 @@ func (d *Deej) handleStateEvent(logger *zap.SugaredLogger, data []byte) {
 
 	// Save state for SSE server
 	d.stateMutex.Lock()
-	// Check if this is a sensor (pot) or switch
-	if strings.HasPrefix(id, "sensor-") || strings.HasPrefix(id, "binary_sensor-") {
+	// Check if this is a sensor (pot), switch, or button
+	if strings.HasPrefix(id, "sensor-") || strings.HasPrefix(id, "binary_sensor-") || id == btnStateID {
 		// Make a copy of the state data for storage
 		stateCopy := make(map[string]interface{})
 		for k, v := range raw {
 			stateCopy[k] = v
 		}
-		// Determine if it's a sensor or switch based on prefix
+		// Determine if it's a sensor, switch, or button based on prefix/id
 		if strings.HasPrefix(id, "binary_sensor-") {
 			d.switchStates[id] = stateCopy
+		} else if id == btnStateID {
+			// Store button state in sensorStates for SSE server
+			d.sensorStates[id] = stateCopy
 		} else {
 			d.sensorStates[id] = stateCopy
 		}
@@ -385,10 +411,6 @@ func (d *Deej) handleStateEvent(logger *zap.SugaredLogger, data []byte) {
 			PercentValue: n,
 		}
 
-		if d.Verbose() {
-			logger.Debugw("Slider moved", "event", move)
-		}
-
 		d.consumersMutex.RLock()
 		consumers := make([]chan SliderMoveEvent, len(d.sliderMoveConsumers))
 		copy(consumers, d.sliderMoveConsumers)
@@ -439,10 +461,6 @@ func (d *Deej) handleStateEvent(logger *zap.SugaredLogger, data []byte) {
 			State:    state,
 		}
 
-		if d.Verbose() {
-			logger.Debugw("Switch changed", "event", sw)
-		}
-
 		d.consumersMutex.RLock()
 		consumers := make([]chan SwitchEvent, len(d.switchConsumers))
 		copy(consumers, d.switchConsumers)
@@ -465,6 +483,54 @@ func (d *Deej) handleStateEvent(logger *zap.SugaredLogger, data []byte) {
 					// Channel is full, skip
 				}
 			}()
+		}
+		return
+	}
+
+	// ---- BUTTON
+	if id == btnStateID {
+		value, _ := raw["value"].(string)
+		// Handle empty values (clearing from ESP32)
+		if value == "" {
+			// Remove state from sensorStates to prevent stale data in SSE server
+			d.stateMutex.Lock()
+			delete(d.sensorStates, id)
+			d.stateMutex.Unlock()
+
+			if d.Verbose() {
+				logger.Debugw("Button state cleared", "id", id)
+			}
+			return
+		}
+
+		// Parse value format: "ID_Action" (e.g., "1_single", "2_double", "3_long")
+		parts := strings.Split(value, "_")
+		if len(parts) != 2 {
+			if d.Verbose() {
+				logger.Debugw("Invalid button value format", "value", value, "id", id)
+			}
+			return
+		}
+
+		buttonID, err := strconv.Atoi(parts[0])
+		if err != nil {
+			if d.Verbose() {
+				logger.Debugw("Failed to parse button ID", "value", value, "error", err)
+			}
+			return
+		}
+
+		actionType := parts[1] // single, double, or long
+
+		if d.Verbose() {
+			logger.Debugw("Button pressed", "button", buttonID, "action", actionType)
+		}
+
+		// Handle button press
+		if d.buttonHandler != nil {
+			if err := d.buttonHandler.HandleButtonPress(buttonID, actionType); err != nil {
+				logger.Warnw("Failed to handle button press", "button", buttonID, "action", actionType, "error", err)
+			}
 		}
 		return
 	}
@@ -559,6 +625,22 @@ func (d *Deej) setupOnConfigReload() {
 	go func() {
 		for {
 			<-configReloadedChannel
+
+			// Update button handler configuration
+			if d.buttonHandler != nil {
+				// Check if we need to cancel running actions (check NEW config)
+				shouldCancel := false
+				if d.config.ButtonsMapping != nil {
+					shouldCancel = d.config.ButtonsMapping.CancelOnReload
+				}
+
+				if shouldCancel {
+					d.logger.Info("Config reloaded with cancel_on_reload=true, cancelling all running button actions")
+					d.buttonHandler.CancelAllActions()
+				}
+				// Update configuration (this happens after cancel check to use new config)
+				d.buttonHandler.UpdateConfig(d.config.ButtonsMapping)
+			}
 
 			// Handle SSE server port changes (independent of I/O interface)
 			newPort := d.config.ConnectionInfo.SSE_RELAY_PORT

@@ -4,7 +4,9 @@ substitutions:
   throtle_interval: 75
   update_interval: 10
   adc_samples: 16       #JFYI: max sample rate about 6k
-
+  click_timing_single: [ON for at most 0.5s, OFF for at least 0.2s]
+  click_timing_double: [ON for at most 0.5s, OFF for at most 0.4s, ON for at most 0.5s]
+  click_timing_long:   [ON for at least 0.8s] 
 esphome:
   name: mix
   friendly_name: Mixer
@@ -97,23 +99,23 @@ logger:
   baud_rate: 115200
 
 # Optional: Enable extra uart which can be used for extra wired communications (alse, uncomment set_extra_uart in on_boot section, and USE_EXTRA_UART in mix_tools.h!)
-#uart:
-#  - id: extra_uart
-#    tx_pin: GPIO17
-#    rx_pin: GPIO16
-#    baud_rate: 115200
+# uart:
+#   - id: extra_uart
+#     tx_pin: GPIO41
+#     rx_pin: GPIO42
+#     baud_rate: 115200
 
 # Optional: Enable Home Assistant API (you can use sliders/switches to control your HA devices)
 # api:
 
 # Optional: Enable OTA updates (set ota_password in secrets xml)
-#ota:
+# ota:
 # - platform: esphome
 #   id: my_ota
 #   password: !secret ota_password
 
 # WiFi config. Option 1: Enable wifi (hardcoded credentials)
-#wifi:
+# wifi:
 #  id: wifi_module
 #  output_power: 8.5db
 #  power_save_mode: none
@@ -167,13 +169,25 @@ interval:
           auto info = id(wifi_module).wifi_rssi();
           ESP_LOGI("wifi", "RSSI: %d dBm", info);
 
-# Optional: factory reset button (reset settings)
-#button:
+#Optional: factory reset button (reset settings)
+# button:
 #  - platform: factory_reset
 #    icon: "mdi:restart-alert"
 #    name: Restart with Factory Default Settings
 
 sensor:
+  - platform: wifi_signal
+    id: wifi_signal_db
+    internal: true
+    update_interval: 5s
+
+  - platform: copy 
+    source_id: wifi_signal_db
+    name: "WiFi strength"
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+    unit_of_measurement: "%"
+
   - platform: adc
     id: vref
     internal: true
@@ -183,6 +197,11 @@ sensor:
     samples: ${adc_samples}
     raw: true
 
+  - platform: template
+    id: pot0
+    name: "pot0"
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
   - platform: adc
     id: s0_v
     internal: true
@@ -196,6 +215,11 @@ sensor:
         - lambda: |-
             process_pot(0, id(s0_v), id(pot0), (uint16_t)x, ${update_interval}, ${throtle_interval}, false);
 
+  - platform: template
+    id: pot1
+    name: "pot1"
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
   - platform: adc
     id: s1_v
     internal: true
@@ -209,6 +233,11 @@ sensor:
         - lambda: |-
             process_pot(1, id(s1_v), id(pot1), (uint16_t)x, ${update_interval}, ${throtle_interval}, false);
 
+  - platform: template
+    id: pot2
+    name: "pot2"
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
   - platform: adc
     id: s2_v
     internal: true
@@ -222,6 +251,11 @@ sensor:
         - lambda: |-
             process_pot(2, id(s2_v), id(pot2), (uint16_t)x, ${update_interval}, ${throtle_interval}, false);
 
+  - platform: template
+    id: pot3
+    name: "pot3"
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
   - platform: adc
     id: s3_v
     internal: true
@@ -235,6 +269,11 @@ sensor:
         - lambda: |-
             process_pot(3, id(s3_v), id(pot3), (uint16_t)x, ${update_interval}, ${throtle_interval}, false);
 
+  - platform: template
+    id: pot4
+    name: "pot4"
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
   - platform: adc
     id: s4_v
     internal: true
@@ -248,6 +287,11 @@ sensor:
         - lambda: |-
             process_pot(4, id(s4_v), id(pot4), (uint16_t)x, ${update_interval}, ${throtle_interval}, false);
 
+  - platform: template
+    id: pot5
+    name: "pot5"
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
   - platform: adc
     id: s5_v
     internal: true
@@ -260,54 +304,6 @@ sensor:
       then:
         - lambda: |-
             process_pot(5, id(s5_v), id(pot5), (uint16_t)x, ${update_interval}, ${throtle_interval}, false);
-
-  - platform: template
-    id: pot0
-    name: "pot0"
-    unit_of_measurement: "%"
-    accuracy_decimals: 0
-
-  - platform: template
-    id: pot1
-    name: "pot1"
-    unit_of_measurement: "%"
-    accuracy_decimals: 0
-
-  - platform: template
-    id: pot2
-    name: "pot2"
-    unit_of_measurement: "%"
-    accuracy_decimals: 0
-
-  - platform: template
-    id: pot3
-    name: "pot3"
-    unit_of_measurement: "%"
-    accuracy_decimals: 0
-
-  - platform: template
-    id: pot4
-    name: "pot4"
-    unit_of_measurement: "%"
-    accuracy_decimals: 0
-
-  - platform: template
-    id: pot5
-    name: "pot5"
-    unit_of_measurement: "%"
-    accuracy_decimals: 0
-
-  - platform: wifi_signal
-    id: wifi_signal_db
-    internal: true
-    update_interval: 5s
-
-  - platform: copy 
-    source_id: wifi_signal_db
-    name: "WiFi strength"
-    filters:
-      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
-    unit_of_measurement: "%"
 
 binary_sensor:
   - platform: gpio
@@ -393,4 +389,143 @@ binary_sensor:
       - delayed_off: ${debounce_interval}ms
       - lambda: |-
           return process_sw(5, x);
+
+  - platform: gpio
+    id: btn0
+    pin:
+      number: GPIO15
+      mode: INPUT_PULLUP
+      inverted: true
+    filters:
+      - delayed_on: ${debounce_interval}ms
+      - delayed_off: ${debounce_interval}ms      
+    on_multi_click:
+      - timing: ${click_timing_single}
+        then:
+          - script.execute: {id: update_btn_state, btn: 0, value: "single"}
+      - timing: ${click_timing_double}
+        then:
+          - script.execute: {id: update_btn_state, btn: 0, value: "double"}
+      - timing: ${click_timing_long}
+        then:
+          - script.execute: {id: update_btn_state, btn: 0, value: "long"}
+
+  - platform: gpio
+    id: btn1
+    pin:
+      number: GPIO16
+      mode: INPUT_PULLUP
+      inverted: true
+    filters:
+      - delayed_on: ${debounce_interval}ms
+      - delayed_off: ${debounce_interval}ms      
+    on_multi_click:
+      - timing: ${click_timing_single}
+        then:
+          - script.execute: {id: update_btn_state, btn: 1, value: "single"}
+      - timing: ${click_timing_double}
+        then:
+          - script.execute: {id: update_btn_state, btn: 1, value: "double"}
+      - timing: ${click_timing_long}
+        then:
+          - script.execute: {id: update_btn_state, btn: 1, value: "long"}
+
+  - platform: gpio
+    id: btn2
+    pin:
+      number: GPIO17
+      mode: INPUT_PULLUP
+      inverted: true
+    filters:
+      - delayed_on: ${debounce_interval}ms
+      - delayed_off: ${debounce_interval}ms      
+    on_multi_click:
+      - timing: ${click_timing_single}
+        then:
+          - script.execute: {id: update_btn_state, btn: 2, value: "single"}
+      - timing: ${click_timing_double}
+        then:
+          - script.execute: {id: update_btn_state, btn: 2, value: "double"}
+      - timing: ${click_timing_long}
+        then:
+          - script.execute: {id: update_btn_state, btn: 2, value: "long"}
+
+  - platform: gpio
+    id: btn3
+    pin:
+      number: GPIO18
+      mode: INPUT_PULLUP
+      inverted: true
+    filters:
+      - delayed_on: ${debounce_interval}ms
+      - delayed_off: ${debounce_interval}ms      
+    on_multi_click:
+      - timing: ${click_timing_single}
+        then:
+          - script.execute: {id: update_btn_state, btn: 3, value: "single"}
+      - timing: ${click_timing_double}
+        then:
+          - script.execute: {id: update_btn_state, btn: 3, value: "double"}
+      - timing: ${click_timing_long}
+        then:
+          - script.execute: {id: update_btn_state, btn: 3, value: "long"}
+
+  - platform: gpio
+    id: btn4
+    pin:
+      number: GPIO21
+      mode: INPUT_PULLUP
+      inverted: true
+    filters:
+      - delayed_on: ${debounce_interval}ms
+      - delayed_off: ${debounce_interval}ms      
+    on_multi_click:
+      - timing: ${click_timing_single}
+        then:
+          - script.execute: {id: update_btn_state, btn: 4, value: "single"}
+      - timing: ${click_timing_double}
+        then:
+          - script.execute: {id: update_btn_state, btn: 4, value: "double"}
+      - timing: ${click_timing_long}
+        then:
+          - script.execute: {id: update_btn_state, btn: 4, value: "long"}
+
+  - platform: gpio
+    id: btn5
+    pin:
+      number: GPIO40
+      mode: INPUT_PULLUP
+      inverted: true
+    filters:
+      - delayed_on: ${debounce_interval}ms
+      - delayed_off: ${debounce_interval}ms      
+    on_multi_click:
+      - timing: ${click_timing_single}
+        then:
+          - script.execute: {id: update_btn_state, btn: 5, value: "single"}
+      - timing: ${click_timing_double}
+        then:
+          - script.execute: {id: update_btn_state, btn: 5, value: "double"}
+      - timing: ${click_timing_long}
+        then:
+          - script.execute: {id: update_btn_state, btn: 5, value: "long"}
+
+text_sensor:
+  - platform: template
+    id: last_btn_state
+    name: "last_btn_state"
+
+script:
+  - id: update_btn_state
+    parameters:
+      btn: int
+      value: string
+    then:
+      - text_sensor.template.publish:
+          id: last_btn_state
+          state: !lambda |-
+            return process_btn((int)btn, value.c_str());
+      - text_sensor.template.publish:
+          id: last_btn_state
+          state: ""
 

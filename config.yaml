@@ -25,6 +25,14 @@ switches_mapping:
   4:
   5:
 
+button_actions:
+  cancel_on_reload: false
+  0:
+  1:
+  2:
+  3:
+  4:
+  5:
 
 SERIAL_Port: COM18
 SERIAL_BaudRate: 115200

@@ -88,13 +88,13 @@ if (-not $SkipBuild) {
 else {
     Write-Host ""
     Write-Host "Skipping build..." -ForegroundColor Yellow
-    
+
     # If skipping build, use current version from versioninfo
     $CurrentVersionInfo = @{
-        Major = $Major
+    Major = $Major
         Minor = $CurrentMinor
-        Build = $Build
-    }
+    Build = $Build
+}
     $VersionTag = Get-VersionTag -VersionInfo $CurrentVersionInfo -Build $Build
 }
 

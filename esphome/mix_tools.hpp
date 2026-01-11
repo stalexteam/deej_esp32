@@ -48,6 +48,8 @@ inline void process_pot(
     bool invert
 ) {
     if (pot_id >= MIXER_POT_COUNT_MAX || adc_sens == nullptr || pot_sens == nullptr) return;
+    if (mixer_pot_max_id < pot_id)
+        mixer_pot_max_id = pot_id;
 
     uint16_t vref_raw = 0;
     if (global_vref_sensor != nullptr && !std::isnan(global_vref_sensor->state)) {
@@ -112,6 +114,28 @@ inline bool process_sw(int sw_id, bool value) {
     }
     
     return value;
+}
+
+inline std::string process_btn(int btn, const char* value) {
+    #define JSON_CLEAR "{\"id\":\"text_sensor-last_btn_state\",\"value\":\"\"}"
+    char buf[64] = {0, };
+    snprintf(buf, sizeof(buf), "%d_%s", btn, value);
+    
+    char json_buf[128] = {0, };
+    snprintf(json_buf, sizeof(json_buf), "{\"id\":\"text_sensor-last_btn_state\",\"value\":\"%s\"}", buf);
+    
+    ESP_LOGW("json", json_buf);
+    ESP_LOGW("json", JSON_CLEAR);
+    #ifdef USE_EXTRA_UART
+    if (global_extra_uart != nullptr){
+        global_extra_uart->write_str(json_buf);
+        global_extra_uart->write_str("\n");
+        global_extra_uart->write_str(JSON_CLEAR);
+        global_extra_uart->write_str("\n");
+    }
+    #endif
+    
+    return std::string(buf);
 }
 
 inline void hostsend_all() {
