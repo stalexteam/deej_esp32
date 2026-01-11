@@ -48,6 +48,8 @@ The software reads configuration from `config.yaml` in the same directory as the
 
 ### Key Configuration Sections
 
+See [pkg/deej/scripts/misc/default-config.yaml](pkg/deej/scripts/misc/default-config.yaml) for **complete** documentation.
+
 #### Slider Mapping
 
 Map sliders to audio applications or system channels:
@@ -95,8 +97,6 @@ button_actions:
         - type: typing
           text: "Hello World\n"
 ```
-
-See `pkg/deej/scripts/misc/default-config.yaml` for complete button action documentation.
 
 #### Transport Configuration
 
