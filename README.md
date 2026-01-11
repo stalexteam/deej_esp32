@@ -95,7 +95,8 @@ One deej instance acts as relay, proxying ESP32 data to multiple clients.
 
 ---
 
-## 🧱 License & Build
+## 🧱 License
 
-License, build process, and Deej binary behavior are the same as in the original project:
+Same as in the original project:
 👉 [https://github.com/omriharel/deej](https://github.com/omriharel/deej)
+
