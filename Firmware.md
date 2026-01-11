@@ -35,7 +35,7 @@ All firmware configuration files are located in the `esphome/` directory:
    * Copy `mix_tools.hpp` and `mix_tools.cpp` to the same directory
    * Modify .yaml (and .hpp) to fit your needs.
 
-2. **Configure && Build **:
+2. **Configure && Build**:
    ```bash
    esphome compile mix_latching.yaml
    ```
@@ -58,47 +58,82 @@ All firmware configuration files are located in the `esphome/` directory:
 
 The following features are **active by default** in the provided configurations:
 
+
 #### ✅ Sliders (Potentiometers)
-* **Count**: 6 sliders (pot0..pot5)
-* **GPIO pins**: GPIO1, GPIO2, GPIO4, GPIO5, GPIO6, GPIO7
-* **Reference pin**: GPIO8 (ADC maximum reference)
-* **Function**: Volume control for audio applications
-* **Status**: Always enabled
+
+**Status**: Always enabled
+
+**Count**: 6 sliders (pot0..pot5)
+
+**GPIO pins**: GPIO1, GPIO2, GPIO4, GPIO5, GPIO6, GPIO7
+
+**Reference pin**: GPIO8 (ADC maximum reference)
+
+**Function**: Volume control for audio applications
+
 
 #### ✅ Wi-Fi Connection (Optional)
-* **Setup**: Configure via https://web.esphome.io/ after flashing, or in .yaml
-* **Status LED**: GPIO48 (blue LED)
-  * Constantly ON = Wi-Fi not configured
-  * Blinking = Connecting/not connected
-  * Constantly OFF = Connected
 
-#### ✅ Web Server (Optional)
-* **Port**: 80
-* **Access**: http://device-name.local/ (when connected to Wi-Fi)
-* **SSE source**: http://device-name.local/events/ (used to connect deej softare)
-* **Function**: Device monitoring & status
+**Status**: Enabled after setup.
+
+**Setup**: Configure via https://web.esphome.io/ after flashing, or in .yaml
+
+**Status LED**: GPIO48 (blue LED)
+
+* Constantly ON = Wi-Fi not configured
+* Blinking = Connecting/not connected
+* Constantly OFF = Connected
+
+
+#### ✅ Web Server component
+
+**Status**: Always enabled
+
+**Port**: 80
+
+**Access**: http://device-name.local/ (when connected to Wi-Fi)
+
+**SSE source**: http://device-name.local/events/ (used to connect deej softare)
+
+**Function**: Device monitoring & status
+
 
 #### ✅ Action Buttons (Optional)
 
 **Status**: Enabled by default, can be disabled
+
 **Count**: 6 buttons (btn0..btn5)
+
 **GPIO pins**: GPIO15, GPIO16, GPIO17, GPIO18, GPIO21, GPIO40
+
 **Types**: Single click, double click, long press
+
 **Function**: Trigger actions in deej software (launch apps, execute commands, etc.)
+
 
 #### ✅ Mute Switches (Optional Features)
 
 **Status**: Enabled by default, can be disabled by removing the sw* and related entities.
+
 **Count**: 6 buttons (sw0..sw5)
+
 **GPIO pins**: GPIO9..GPIO14 (sw0..sw5)
+
 **Configuration**:
-* **Latching switches**: Use `mix_latching.yaml` (preferred)
-* **Momentary switches**: Use `mix_momentary.yaml`
+  
+  **Latching switches**: Use `mix_latching.yaml` (preferred)
+  
+  **Momentary switches**: Use `mix_momentary.yaml`
+
 
 #### 🔧 Extra UART (Multi-Wired Setup)
+
 **Status**: Disabled by default
+
 **GPIO pins**: GPIO41 (TX), GPIO42 (RX) - can be changed in YAML (default in example config)
+
 **Purpose**: Enable additional wired UART channel for multi-PC setups (duplicate data stream)
+
 **Configuration**:
 1. In `mix_tools.hpp`: Uncomment: `#define USE_EXTRA_UART`
 2. In YAML file: Uncomment `uart:` section
@@ -106,12 +141,17 @@ The following features are **active by default** in the provided configurations:
 
 **Requirements**: UART isolators and isolated DC-DC converters (see [Hardware.md](Hardware.md#multi-wired-setup))
 
+
 #### 🔧 Home Assistant API
 
 **Status**: Disabled by default
+
 **Purpose**: Integrate mixer with Home Assistant for automation
+
 **Configuration**: Uncomment `api:` section in YAML
+
 **Usage**: Monitor sliders/switches/buttons state from Home Assistant, use in automations
+
 
 #### 🔧 OTA Updates
 
@@ -120,11 +160,15 @@ The following features are **active by default** in the provided configurations:
 **Purpose**: Update firmware over Wi-Fi without physical access
 
 **Configuration**:
-1. Create `secrets.yaml` with `ota_password: "your_password"`
-2. Uncomment `ota:` section in YAML
-3. Set password in `ota_password: !secret ota_password`
+  
+  1. Create `secrets.yaml` with `ota_password: "your_password"`
+  
+  2. Uncomment `ota:` section in YAML
+  
+  3. Set password in `ota_password: !secret ota_password`
 
 **Security**: Always use a strong password
+
 
 #### 🔧 Captive Portal
 
@@ -133,10 +177,13 @@ The following features are **active by default** in the provided configurations:
 **Purpose**: Fallback Wi-Fi hotspot for configuration
 
 **Configuration**:
-1. Uncomment `captive_portal:` section
-2. **Important**: Remove `CONFIG_ESP_WIFI_SOFTAP_SUPPORT: "n"` from `sdkconfig_options`
+  
+  1. Uncomment `captive_portal:` section
+  
+  2. **Important**: Remove `CONFIG_ESP_WIFI_SOFTAP_SUPPORT: "n"` from `sdkconfig_options`
 
 **Note**: Requires SoftAP support, which is disabled by default for performance
+
 
 #### 🔧 Factory Reset Button
 
