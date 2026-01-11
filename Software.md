@@ -44,75 +44,7 @@ See [pkg/deej/scripts/README.md](pkg/deej/scripts/README.md) for automated build
 
 The software reads configuration from `config.yaml` in the same directory as the executable.
 
-**Reference configuration**: Complete configuration examples are provided in the release packages or can be found in the repository.
-
-### Key Configuration Sections
-
-See [pkg/deej/scripts/misc/default-config.yaml](pkg/deej/scripts/misc/default-config.yaml) for **complete** documentation.
-
-#### Slider Mapping
-
-Map sliders to audio applications or system channels:
-
-```yaml
-slider_mapping:
-  0: master              # Master volume
-  1: chrome.exe          # Chrome browser
-  2: spotify.exe         # Spotify
-  3: discord.exe        # Discord
-  4: ["c:\\Program Files (x86)\\Steam"]  # All Steam processes
-```
-
-**Special values**:
-* `master` - Master volume control
-* `mic` - Microphone input level
-* `system` - System sounds (Windows only)
-* `deej.current` - Currently active app (Windows only)
-* `deej.unmapped` - All unmapped applications
-* Directory path - All processes from that directory
-
-#### Switch Mapping
-
-Map switches to mute/unmute applications:
-
-```yaml
-switches_mapping:
-  0: mic                 # Microphone mute
-  3: discord.exe        # Discord mute
-```
-
-#### Button Actions
-
-Configure physical buttons to trigger actions:
-
-```yaml
-button_actions:
-  cancel_on_reload: false
-  0:
-    single:
-      exclusive: true
-      steps:
-        - type: execute
-          app: "notepad.exe"
-        - type: typing
-          text: "Hello World\n"
-```
-
-#### Transport Configuration
-
-Configure transport layer:
-
-```yaml
-# Serial UART (Receive)
-SERIAL_Port: COM18
-SERIAL_BaudRate: 115200
-
-# Wi-Fi SSE (Receive)
-SSE_URL: http://mix.local/events
-
-# SSE Relay (transmit)
-SSE_RELAY_PORT: 8080
-```
+**Reference configuration**: Complete configuration examples are provided in the release packages or look for [pkg/deej/scripts/misc/default-config.yaml](pkg/deej/scripts/misc/default-config.yaml) in the repository.
 
 ---
 
@@ -147,32 +79,6 @@ All logs are saved to `logs/deej-latest-run.log` for troubleshooting.
 * **Button actions**: Execution status and errors
 * **Configuration errors**: Validation failures
 
-### Path-Based Process Matching
-
-In addition to matching processes by name (e.g., `chrome.exe`), you can specify directory paths in `slider_mapping`. All processes launched from the specified directory or its subdirectories will be controlled by that slider.
-
-**Examples**:
-* Windows: `C:\Program Files (x86)\Steam`
-* Linux: `/usr/bin/steam`
-
-Paths are matched case-insensitively on Windows and case-sensitively on Linux.
-
-### Slider Override
-
-Set constant volume levels for specific sliders:
-
-```yaml
-slider_override:
-  0:        # No override, use ESP32 value (empty or omitted = no override)
-  1: 100    # Always 100%
-  2: 50     # Always 50%
-```
-
-**Behavior:**
-* If a value is set (0-100), it will be used instead of the ESP32 reading
-* If the key is omitted or set to empty/null, the slider will use the value received from ESP32
-* Useful for "pinning" volume levels in specific situations or testing
-
 ---
 
 ## Platform Differences
@@ -203,47 +109,7 @@ slider_override:
 
 ---
 
-## Button Actions
-
-Physical buttons on the mixer can trigger various actions:
-
-### Action Types
-
-* **Single click** - Quick press and release
-* **Double click** - Two quick presses
-* **Long press** - Press and hold
-
-### Step Types
-
-* **execute** - Run an application
-  * `app`: Path to executable (required)
-  * `args`: Command-line arguments (optional, default: none)
-  * `wait`: Wait for completion (optional, default: `false`)
-  * `wait_timeout`: Timeout in milliseconds for `wait: true` (optional, default: `0` = infinite)
-  * `wait_wnd`: Wait for window to appear (optional, Windows only, only with `wait: false`)
-    * `timeout`: Timeout in milliseconds (required)
-    * `focused`: Check if window is focused (optional, default: `false`)
-    * `title`: Window title filter for more precise search (optional)
-* **delay** - Wait for specified duration
-  * `ms`: Duration in milliseconds (required, must be > 0)
-* **keystroke** - Simulate keyboard input
-  * `keys`: Key combination string (required, e.g., "Ctrl+Alt+T")
-* **typing** - Type text character by character
-  * `text`: Text to type (required, supports escape sequences: `\n` for Enter, `\t` for Tab, `\r` for Return, `\\` for backslash)
-  * `char_delay`: Delay between characters in milliseconds (optional, default: `0` on Linux = types instantly, `1ms` minimum on Windows for reliability)
-
-### Exclusive Execution
-
-By default, button actions are **exclusive** - if an action is already running, new presses are ignored. Set `exclusive: false` to allow overlapping actions.
-
-### Configuration Reload Behavior
-
-* `cancel_on_reload: false` (default) - Actions continue with old config, new presses use new config
-* `cancel_on_reload: true` - All running actions are cancelled when config is reloaded
-
----
-
-## Usage Scenarios
+## Usage Scenarios (Transport layer config)
 
 ### Single PC Setup (Wired)
 
