@@ -10,7 +10,7 @@ This fork transforms the original Arduino-based Deej mixer into an ESP32-powered
 
 **Key improvements:**
 
-* **Flexible transport layer**: Connect via USB-UART cable or wirelessly over Wi-Fi
+* **Flexible transport layer**: Connect via USB-UART cable or wirelessly over Wi-Fi or connect deej.. to another deej.
 * **Multi-client support**: Multiple Deej software instances can connect to the same mixer simultaneously over Wi-Fi
 * **Home Assistant integration**: Easy integration for dimmer control and automation
 * **Mute switches**: Hardware mute/unmute switches for audio channels
@@ -99,4 +99,5 @@ One deej instance acts as relay, proxying ESP32 data to multiple clients.
 
 Same as in the original project:
 👉 [https://github.com/omriharel/deej](https://github.com/omriharel/deej)
+
 
