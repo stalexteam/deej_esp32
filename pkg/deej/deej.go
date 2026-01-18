@@ -73,6 +73,7 @@ type Deej struct {
 	stateMutex   sync.RWMutex                      // Protects state maps
 	sensorStates map[string]map[string]interface{} // id -> state data
 	switchStates map[string]map[string]interface{} // id -> state data
+	switchStateByID map[int]bool                   // switch index -> state
 	sseServer    *SseServer
 
 	// Button handler
@@ -105,6 +106,7 @@ func NewDeej(logger *zap.SugaredLogger, verbose bool) (*Deej, error) {
 		switchConsumers:     []chan SwitchEvent{},
 		sensorStates:        make(map[string]map[string]interface{}),
 		switchStates:        make(map[string]map[string]interface{}),
+		switchStateByID:     make(map[int]bool),
 	}
 
 	serial, err := NewSerialIO(d, logger)
@@ -456,9 +458,16 @@ func (d *Deej) handleStateEvent(logger *zap.SugaredLogger, data []byte) {
 			return
 		}
 
+		d.stateMutex.Lock()
+		prevState, hasPrev := d.switchStateByID[idx]
+		d.switchStateByID[idx] = state
+		d.stateMutex.Unlock()
+
 		sw := SwitchEvent{
-			SwitchID: idx,
-			State:    state,
+			SwitchID:  idx,
+			State:     state,
+			PrevState: prevState,
+			HasPrev:   hasPrev,
 		}
 
 		d.consumersMutex.RLock()
@@ -552,6 +561,14 @@ func (d *Deej) SubscribeToSwitchEvents() chan SwitchEvent {
 	d.switchConsumers = append(d.switchConsumers, ch)
 	d.consumersMutex.Unlock()
 	return ch
+}
+
+// GetSwitchState returns the last known raw switch state.
+func (d *Deej) GetSwitchState(switchID int) (bool, bool) {
+	d.stateMutex.RLock()
+	state, ok := d.switchStateByID[switchID]
+	d.stateMutex.RUnlock()
+	return state, ok
 }
 
 // startIO starts the appropriate I/O interface based on configuration

@@ -58,6 +58,15 @@ func (m *switchMap) get(key int) ([]string, bool) {
 	return value, ok
 }
 
+func (m *switchMap) iterate(f func(int, []string)) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	for key, value := range m.m {
+		f(key, value)
+	}
+}
+
 func (m *switchMap) set(key int, value []string) {
 	m.lock.Lock()
 	defer m.lock.Unlock()

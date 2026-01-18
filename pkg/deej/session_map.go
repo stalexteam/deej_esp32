@@ -32,8 +32,10 @@ type SliderMoveEvent struct {
 }
 
 type SwitchEvent struct {
-	SwitchID int
-	State    bool
+	SwitchID  int
+	State     bool
+	PrevState bool
+	HasPrev   bool
 }
 
 const (
@@ -136,6 +138,7 @@ func (m *sessionMap) getAndAddSessions() error {
 
 	for _, session := range sessions {
 		m.add(session)
+		m.applySwitchMuteState(session)
 
 		// Log all sessions at INFO level so they appear in release build logs
 		m.logger.Infow("Audio session", "key", session.Key(), "session", session)
@@ -305,6 +308,12 @@ func (m *sessionMap) handleSliderMoveEvent(event SliderMoveEvent) {
 								adjustmentFailed = true
 							}
 						}
+						if session.GetSwitchMuteCount() > 0 {
+							if err := session.SetMute(true, true); err != nil {
+								m.logger.Warnw("Failed to re-assert mute for target session", "error", err)
+								adjustmentFailed = true
+							}
+						}
 					}
 				})
 			} else {
@@ -323,6 +332,12 @@ func (m *sessionMap) handleSliderMoveEvent(event SliderMoveEvent) {
 					if session.GetVolume() != event.PercentValue {
 						if err := session.SetVolume(event.PercentValue); err != nil {
 							m.logger.Warnw("Failed to set target session volume", "error", err)
+							adjustmentFailed = true
+						}
+					}
+					if session.GetSwitchMuteCount() > 0 {
+						if err := session.SetMute(true, true); err != nil {
+							m.logger.Warnw("Failed to re-assert mute for target session", "error", err)
 							adjustmentFailed = true
 						}
 					}
@@ -345,6 +360,93 @@ func (m *sessionMap) handleSliderMoveEvent(event SliderMoveEvent) {
 	}
 }
 
+func (m *sessionMap) applySwitchStateToSession(session Session, state bool, prevState bool, hasPrev bool) bool {
+	if hasPrev && state == prevState {
+		return false
+	}
+
+	delta := 0
+	if hasPrev {
+		if state {
+			delta = 1
+		} else {
+			delta = -1
+		}
+	} else if state {
+		delta = 1
+	}
+
+	if delta != 0 {
+		session.AdjustSwitchMuteCount(delta)
+	}
+
+	if session.GetSwitchMuteCount() > 0 {
+		if !session.GetMute() {
+			if err := session.SetMute(true, false); err != nil {
+				m.logger.Warnw("Failed to set mute state for target session", "error", err)
+				return true
+			}
+		}
+		return false
+	}
+
+	if session.GetMute() && (!hasPrev || !state) {
+		if err := session.SetMute(false, false); err != nil {
+			m.logger.Warnw("Failed to set mute state for target session", "error", err)
+			return true
+		}
+	}
+
+	return false
+}
+
+func (m *sessionMap) applySwitchMuteState(session Session) {
+	count := m.calculateSwitchMuteCount(session)
+	session.SetSwitchMuteCount(count)
+
+	if count > 0 && !session.GetMute() {
+		if err := session.SetMute(true, true); err != nil {
+			m.logger.Warnw("Failed to apply initial mute state for session", "error", err)
+		}
+	}
+}
+
+func (m *sessionMap) calculateSwitchMuteCount(session Session) int {
+	count := 0
+
+	m.deej.config.SwitchesMapping.iterate(func(switchID int, targets []string) {
+		state, ok := m.deej.GetSwitchState(switchID)
+		if !ok {
+			return
+		}
+
+		if m.deej.config.InvertSwitches {
+			state = !state
+		}
+
+		if !state {
+			return
+		}
+
+		for _, target := range targets {
+			resolvedTargets := m.resolveTarget(target)
+			for _, resolvedTarget := range resolvedTargets {
+				if util.IsPath(resolvedTarget) {
+					if util.PathMatches(session.ProcessPath(), resolvedTarget) {
+						count++
+						return
+					}
+				} else if resolvedTarget == session.Key() {
+					count++
+					return
+				}
+			}
+		}
+	})
+
+	return count
+}
+
 func (m *sessionMap) handleSwitchEvent(event SwitchEvent) {
 
 	if m.lastSessionRefresh.Add(maxTimeBetweenSessionRefreshes).Before(time.Now()) {
@@ -358,13 +460,24 @@ func (m *sessionMap) handleSwitchEvent(event SwitchEvent) {
 	}
 
 	state := event.State
+	prevState := event.PrevState
 
 	if m.deej.config.InvertSwitches {
 		state = !state
+		prevState = !prevState
 	}
 
 	targetFound := false
 	actionFailed := false
+	appliedSessions := make(map[Session]struct{})
+
+	applyToSession := func(session Session) {
+		if _, ok := appliedSessions[session]; ok {
+			return
+		}
+		appliedSessions[session] = struct{}{}
+		actionFailed = m.applySwitchStateToSession(session, state, prevState, event.HasPrev) || actionFailed
+	}
 
 	for _, target := range targets {
 		resolvedTargets := m.resolveTarget(target)
@@ -375,13 +488,7 @@ func (m *sessionMap) handleSwitchEvent(event SwitchEvent) {
 				m.iterateAllSessions(func(session Session) {
 					if util.PathMatches(session.ProcessPath(), resolvedTarget) {
 						targetFound = true
-						currentMute := session.GetMute()
-						if currentMute != state {
-							if err := session.SetMute(state, false); err != nil {
-								m.logger.Warnw("Failed to set mute state for target session", "error", err)
-								actionFailed = true
-							}
-						}
+						applyToSession(session)
 					}
 				})
 			} else {
@@ -394,13 +501,7 @@ func (m *sessionMap) handleSwitchEvent(event SwitchEvent) {
 				targetFound = true
 
 				for _, session := range sessions {
-					currentMute := session.GetMute()
-					if currentMute != state {
-						if err := session.SetMute(state, false); err != nil {
-							m.logger.Warnw("Failed to set mute state for target session", "error", err)
-							actionFailed = true
-						}
-					}
+					applyToSession(session)
 				}
 			}
 		}

@@ -2,6 +2,7 @@ package deej
 
 import (
 	"strings"
+	"sync"
 
 	"go.uber.org/zap"
 )
@@ -13,6 +14,10 @@ type Session interface {
 
 	GetMute() bool
 	SetMute(v bool, silent bool) error
+
+	GetSwitchMuteCount() int
+	SetSwitchMuteCount(count int)
+	AdjustSwitchMuteCount(delta int) int
 
 	Key() string
 	ProcessPath() string
@@ -39,6 +44,9 @@ type baseSession struct {
 
 	// used by String(), needs to be set by child
 	humanReadableDesc string
+
+	switchMuteLock  sync.Mutex
+	switchMuteCount int
 }
 
 func (s *baseSession) Key() string {
@@ -51,4 +59,30 @@ func (s *baseSession) Key() string {
 	}
 
 	return strings.ToLower(s.name)
+}
+
+func (s *baseSession) GetSwitchMuteCount() int {
+	s.switchMuteLock.Lock()
+	defer s.switchMuteLock.Unlock()
+	return s.switchMuteCount
+}
+
+func (s *baseSession) SetSwitchMuteCount(count int) {
+	if count < 0 {
+		count = 0
+	}
+	s.switchMuteLock.Lock()
+	s.switchMuteCount = count
+	s.switchMuteLock.Unlock()
+}
+
+func (s *baseSession) AdjustSwitchMuteCount(delta int) int {
+	s.switchMuteLock.Lock()
+	s.switchMuteCount += delta
+	if s.switchMuteCount < 0 {
+		s.switchMuteCount = 0
+	}
+	current := s.switchMuteCount
+	s.switchMuteLock.Unlock()
+	return current
 }
