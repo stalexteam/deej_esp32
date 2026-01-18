@@ -302,11 +302,9 @@ func (m *sessionMap) handleSliderMoveEvent(event SliderMoveEvent) {
 				m.iterateAllSessions(func(session Session) {
 					if util.PathMatches(session.ProcessPath(), resolvedTarget) {
 						targetFound = true
-						if session.GetVolume() != event.PercentValue {
-							if err := session.SetVolume(event.PercentValue); err != nil {
-								m.logger.Warnw("Failed to set target session volume", "error", err)
-								adjustmentFailed = true
-							}
+						if err := session.SetVolume(event.PercentValue); err != nil {
+							m.logger.Warnw("Failed to set target session volume", "error", err)
+							adjustmentFailed = true
 						}
 						if session.GetSwitchMuteCount() > 0 {
 							if err := session.SetMute(true, true); err != nil {
@@ -329,11 +327,9 @@ func (m *sessionMap) handleSliderMoveEvent(event SliderMoveEvent) {
 
 				// iterate all matching sessions and adjust the volume of each one
 				for _, session := range sessions {
-					if session.GetVolume() != event.PercentValue {
-						if err := session.SetVolume(event.PercentValue); err != nil {
-							m.logger.Warnw("Failed to set target session volume", "error", err)
-							adjustmentFailed = true
-						}
+					if err := session.SetVolume(event.PercentValue); err != nil {
+						m.logger.Warnw("Failed to set target session volume", "error", err)
+						adjustmentFailed = true
 					}
 					if session.GetSwitchMuteCount() > 0 {
 						if err := session.SetMute(true, true); err != nil {
