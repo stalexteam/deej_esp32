@@ -107,7 +107,8 @@ function Invoke-Build {
         [string]$GitCommit,
         [switch]$NoExit = $false
     )
-    
+    $env:GOARCH = "386"
+	
     $cmdPath = Join-Path $RepoRoot "pkg\deej\cmd"
     $buildDir = Join-Path $RepoRoot "build"
     

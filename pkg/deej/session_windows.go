@@ -79,14 +79,8 @@ func newWCASession(
 		s.processName = process.Executable()
 		s.name = s.processName
 		s.humanReadableDesc = fmt.Sprintf("%s (pid %d)", s.processName, s.pid)
-		
-		// Try get the full process path
-		if processPath, err := util.GetProcessPath(int(s.pid)); err == nil {
-			s.processPath = processPath
-		} else {
-			logger.Debugw("Failed to get process path, will use process name only", "pid", s.pid, "error", err)
-			s.processPath = ""
-		}
+
+		s.processPath = resolveProcessPath(logger, int(s.pid))
 	}
 
 	// use a self-identifying session name e.g. deej.sessions.chrome
@@ -94,6 +88,35 @@ func newWCASession(
 	s.logger.Debugw(sessionCreationLogMessage, "session", s)
 
 	return s, nil
+}
+
+// resolveProcessPath returns the full executable path for the given PID.
+// It checks the global process path cache first to avoid redundant WinAPI calls,
+// which can be slow or blocked by anti-cheat software.
+// On cache miss it calls GetProcessPath and stores the result.
+// Errors are logged at Warn level for access-denied (anti-cheat indicator)
+// and Debug level for all other failures.
+func resolveProcessPath(logger *zap.SugaredLogger, pid int) string {
+	if cached, ok := util.GlobalProcessPathCache.GetCached(pid); ok {
+		return cached
+	}
+
+	path, err := util.GetProcessPath(pid)
+	if err != nil {
+		if util.IsAccessDeniedError(err) {
+			// Access denied is a strong signal of anti-cheat or elevated-privilege process.
+			// Log at Warn so it shows up in release builds and helps diagnose silent exits.
+			logger.Warnw("Access denied getting process path — process may be protected by anti-cheat or run as admin; path-based matching will not work for this process",
+				"pid", pid,
+				"error", err)
+		} else {
+			logger.Debugw("Failed to get process path, will use process name only", "pid", pid, "error", err)
+		}
+		return ""
+	}
+
+	util.GlobalProcessPathCache.Set(pid, path)
+	return path
 }
 
 func newMasterSession(
@@ -146,7 +169,6 @@ func (s *wcaSession) SetVolume(v float32) error {
 		s.logger.Warnw("Audio session expired, triggering session refresh")
 		return errRefreshSessions
 	}
-
 
 	s.logger.Debugw("Adjusting session volume", "to", fmt.Sprintf("%.2f", v))
 
@@ -212,7 +234,6 @@ func (s *masterSession) SetVolume(v float32) error {
 
 		return fmt.Errorf("adjust session volume: %w", err)
 	}
-
 
 	s.logger.Debugw("Adjusting session volume", "to", fmt.Sprintf("%.2f", v))
 

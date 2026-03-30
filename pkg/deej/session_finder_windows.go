@@ -485,7 +485,11 @@ func (sf *wcaSessionFinder) enumerateAndAddProcessSessions(
 	var sessionEnumerator *wca.IAudioSessionEnumerator
 
 	if err := audioSessionManager2.GetSessionEnumerator(&sessionEnumerator); err != nil {
-		return err
+		// this can fail if the audio engine is restarting or the device was just unplugged
+		sf.logger.Warnw("Failed to get session enumerator from audio session manager",
+			"deviceFriendlyName", endpointFriendlyName,
+			"error", err)
+		return fmt.Errorf("get session enumerator for device %q: %w", endpointFriendlyName, err)
 	}
 	defer sessionEnumerator.Release()
 

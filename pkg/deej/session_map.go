@@ -152,7 +152,32 @@ func (m *sessionMap) getAndAddSessions() error {
 	m.logger.Infow("Got all audio sessions successfully", "count", len(sessions))
 	m.logger.Debugw("Session map details", "sessionMap", m)
 
+	// evict stale process path cache entries — remove PIDs that are no longer alive.
+	// we do this here because getAndAddSessions is the only place where we have
+	// the complete and up-to-date list of active audio sessions (and thus their PIDs).
+	m.evictStaleProcessPathCache(sessions)
+
 	return nil
+}
+
+// evictStaleProcessPathCache removes cached process paths for PIDs that are no longer
+// present in the current set of audio sessions. This prevents the cache from growing
+// unboundedly and ensures stale paths don't linger after a process exits.
+func (m *sessionMap) evictStaleProcessPathCache(sessions []Session) {
+	// collect all active PIDs from wcaSessions (master/system sessions have no PID)
+	activePIDs := make([]int, 0, len(sessions))
+	for _, session := range sessions {
+		if wca, ok := session.(*wcaSession); ok && wca.pid > 0 {
+			activePIDs = append(activePIDs, int(wca.pid))
+		}
+	}
+
+	evicted := util.GlobalProcessPathCache.EvictStale(activePIDs)
+	if evicted > 0 {
+		m.logger.Debugw("Evicted stale process path cache entries",
+			"evicted", evicted,
+			"remaining", util.GlobalProcessPathCache.Size())
+	}
 }
 
 func (m *sessionMap) setupOnConfigReload() {
@@ -177,8 +202,8 @@ func (m *sessionMap) setupOnSliderMove() {
 		for {
 			event, ok := <-sliderEventsChannel
 			if !ok {
-				// Channel closed, exit goroutine
-				m.logger.Debug("Slider events channel closed, exiting handler")
+				// channel was closed by closeEventChannels() during shutdown — exit cleanly
+				m.logger.Info("Slider events channel closed, session map handler exiting")
 				return
 			}
 			m.handleSliderMoveEvent(event)
@@ -193,8 +218,8 @@ func (m *sessionMap) setupOnSwitchEvent() {
 		for {
 			event, ok := <-switchEventsChannel
 			if !ok {
-				// Channel closed, exit goroutine
-				m.logger.Debug("Switch events channel closed, exiting handler")
+				// channel was closed by closeEventChannels() during shutdown — exit cleanly
+				m.logger.Info("Switch events channel closed, session map handler exiting")
 				return
 			}
 			m.handleSwitchEvent(event)

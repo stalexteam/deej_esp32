@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -11,18 +12,81 @@ import (
 )
 
 var (
-	modkernel32           = syscall.NewLazyDLL("kernel32.dll")
+	modkernel32                    = syscall.NewLazyDLL("kernel32.dll")
 	procQueryFullProcessImageNameW = modkernel32.NewProc("QueryFullProcessImageNameW")
 )
 
 const (
 	getCurrentWindowInternalCooldown = time.Millisecond * 350
+
+	// ERROR_ACCESS_DENIED is returned when a process (e.g. protected by anti-cheat) denies handle access
+	errorAccessDenied = uintptr(5)
 )
 
 var (
 	lastGetCurrentWindowResult []string
 	lastGetCurrentWindowCall   = time.Now()
 )
+
+// processPathCache is a thread-safe PID -> path cache.
+// It avoids repeated OpenProcess/QueryFullProcessImageNameW calls on every session refresh,
+// which is especially important when running alongside games with anti-cheat protection.
+type processPathCache struct {
+	mu    sync.RWMutex
+	paths map[int]string
+}
+
+func newProcessPathCache() *processPathCache {
+	return &processPathCache{
+		paths: make(map[int]string),
+	}
+}
+
+// GlobalProcessPathCache is the package-level singleton used by Windows session code.
+var GlobalProcessPathCache = newProcessPathCache()
+
+// GetCached returns the cached path for a PID, and a bool indicating whether it was found.
+func (c *processPathCache) GetCached(pid int) (string, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	path, ok := c.paths[pid]
+	return path, ok
+}
+
+// Set stores a path for a PID in the cache.
+func (c *processPathCache) Set(pid int, path string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.paths[pid] = path
+}
+
+// EvictStale removes cached entries whose PIDs are not present in activePIDs.
+// Returns the number of evicted entries so the caller can log it.
+func (c *processPathCache) EvictStale(activePIDs []int) int {
+	active := make(map[int]struct{}, len(activePIDs))
+	for _, pid := range activePIDs {
+		active[pid] = struct{}{}
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	evicted := 0
+	for pid := range c.paths {
+		if _, ok := active[pid]; !ok {
+			delete(c.paths, pid)
+			evicted++
+		}
+	}
+	return evicted
+}
+
+// Size returns the number of entries currently in the cache (used for logging/diagnostics).
+func (c *processPathCache) Size() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return len(c.paths)
+}
 
 func getCurrentWindowProcessNames() ([]string, error) {
 
@@ -100,32 +164,48 @@ func getCurrentWindowProcessNames() ([]string, error) {
 	return result, nil
 }
 
-// GetProcessPath returns the full path to the executable for the given process ID
+// IsAccessDeniedError returns true if the error is a Windows ERROR_ACCESS_DENIED (code 5).
+// This typically means a process is protected by anti-cheat software or elevated privileges.
+func IsAccessDeniedError(err error) bool {
+	if errno, ok := err.(syscall.Errno); ok {
+		return uintptr(errno) == errorAccessDenied
+	}
+	return false
+}
+
+// GetProcessPath returns the full Win32 path to the executable for the given PID.
+// It first tries with PROCESS_QUERY_INFORMATION, then falls back to
+// PROCESS_QUERY_LIMITED_INFORMATION (0x1000) which works for most protected processes.
+// Uses PROCESS_NAME_WIN32 (flag=1) format, which returns a standard C:\... path
+// and requires fewer privileges than PROCESS_NAME_NATIVE (flag=0).
 func GetProcessPath(pid int) (string, error) {
-	// Open process handle with query information access
+	// try full query rights first
 	handle, err := syscall.OpenProcess(syscall.PROCESS_QUERY_INFORMATION, false, uint32(pid))
 	if err != nil {
-		// Try with limited information access (for processes running with different privileges)
-		handle, err = syscall.OpenProcess(0x1000, false, uint32(pid)) // PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-		if err != nil {
-			return "", fmt.Errorf("open process: %w", err)
+		// fall back to limited query rights — works for most processes including many protected ones
+		var limitedErr error
+		handle, limitedErr = syscall.OpenProcess(0x1000 /* PROCESS_QUERY_LIMITED_INFORMATION */, false, uint32(pid))
+		if limitedErr != nil {
+			// wrap the original (more descriptive) error, mention the fallback failed too
+			return "", fmt.Errorf("open process (pid %d): %w", pid, err)
 		}
 	}
 	defer syscall.CloseHandle(handle)
 
-	// Query full process image name
 	buf := make([]uint16, win.MAX_PATH)
 	size := uint32(len(buf))
-	
-	ret, _, _ := procQueryFullProcessImageNameW.Call(
+
+	// PROCESS_NAME_WIN32 (flag=1) returns a standard C:\... path.
+	// PROCESS_NAME_NATIVE (flag=0) returns \Device\HarddiskVolume3\... and needs higher privileges.
+	ret, _, lastErr := procQueryFullProcessImageNameW.Call(
 		uintptr(handle),
-		0, // PROCESS_NAME_NATIVE format
+		1, // PROCESS_NAME_WIN32
 		uintptr(unsafe.Pointer(&buf[0])),
 		uintptr(unsafe.Pointer(&size)),
 	)
-	
+
 	if ret == 0 {
-		return "", fmt.Errorf("QueryFullProcessImageNameW failed")
+		return "", fmt.Errorf("QueryFullProcessImageNameW (pid %d): %w", pid, lastErr)
 	}
 
 	return syscall.UTF16ToString(buf[:size]), nil

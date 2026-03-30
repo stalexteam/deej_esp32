@@ -59,7 +59,8 @@ type Deej struct {
 	stopChannel chan bool
 	version     string
 	verbose     bool
-	stopping    sync.Once // Ensures signalStop is only called once
+	stopping    sync.Once  // Ensures signalStop is only called once
+	stopped     atomic.Bool // Set to true once shutdown begins; guards handleStateEvent from sending to closed channels
 
 	// Common event consumers for all I/O implementations
 	sliderMoveConsumers []chan SliderMoveEvent
@@ -70,11 +71,11 @@ type Deej struct {
 	ioMutex sync.Mutex // Protects io field and startIO() calls
 
 	// State storage for SSE server
-	stateMutex   sync.RWMutex                      // Protects state maps
-	sensorStates map[string]map[string]interface{} // id -> state data
-	switchStates map[string]map[string]interface{} // id -> state data
-	switchStateByID map[int]bool                   // switch index -> state
-	sseServer    *SseServer
+	stateMutex      sync.RWMutex                      // Protects state maps
+	sensorStates    map[string]map[string]interface{} // id -> state data
+	switchStates    map[string]map[string]interface{} // id -> state data
+	switchStateByID map[int]bool                      // switch index -> state
+	sseServer       *SseServer
 
 	// Button handler
 	buttonHandler *ButtonHandler
@@ -254,6 +255,11 @@ func (d *Deej) run() {
 func (d *Deej) signalStop() {
 	d.stopping.Do(func() {
 		d.logger.Debug("Signalling stop channel")
+
+		// Mark as stopped before closing channels so that handleStateEvent
+		// stops dispatching events without relying on recover() from channel panics.
+		d.stopped.Store(true)
+
 		select {
 		case d.stopChannel <- true:
 		default:
@@ -311,6 +317,9 @@ func (d *Deej) closeEventChannels() {
 	d.consumersMutex.Lock()
 	defer d.consumersMutex.Unlock()
 
+	sliderCount := len(d.sliderMoveConsumers)
+	switchCount := len(d.switchConsumers)
+
 	// Close all slider move event channels
 	for _, ch := range d.sliderMoveConsumers {
 		close(ch)
@@ -323,7 +332,7 @@ func (d *Deej) closeEventChannels() {
 	}
 	d.switchConsumers = nil
 
-	d.logger.Debug("Closed all event channels")
+	d.logger.Debugw("Closed all event channels", "sliderChannels", sliderCount, "switchChannels", switchCount)
 }
 
 // handleStateEvent processes state events from I/O interfaces (SSE or Serial)
@@ -419,22 +428,17 @@ func (d *Deej) handleStateEvent(logger *zap.SugaredLogger, data []byte) {
 		d.consumersMutex.RUnlock()
 
 		for _, c := range consumers {
-			// Safely send to channel, handling closed channels
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						// Channel is closed, ignore
-						if d.Verbose() {
-							logger.Debugw("Channel closed, skipping event", "recover", r)
-						}
-					}
-				}()
-				select {
-				case c <- move:
-				default:
-					// Channel is full, skip
-				}
-			}()
+			// If shutdown has begun, channels may already be closed — stop dispatching.
+			// We check the flag rather than using recover() to avoid silently swallowing panics
+			// that could indicate real bugs unrelated to shutdown.
+			if d.stopped.Load() {
+				return
+			}
+			select {
+			case c <- move:
+			default:
+				// Channel is full, drop the event
+			}
 		}
 		return
 	}
@@ -476,22 +480,15 @@ func (d *Deej) handleStateEvent(logger *zap.SugaredLogger, data []byte) {
 		d.consumersMutex.RUnlock()
 
 		for _, c := range consumers {
-			// Safely send to channel, handling closed channels
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						// Channel is closed, ignore
-						if d.Verbose() {
-							logger.Debugw("Channel closed, skipping event", "recover", r)
-						}
-					}
-				}()
-				select {
-				case c <- sw:
-				default:
-					// Channel is full, skip
-				}
-			}()
+			// Same shutdown guard as for slider events above
+			if d.stopped.Load() {
+				return
+			}
+			select {
+			case c <- sw:
+			default:
+				// Channel is full, drop the event
+			}
 		}
 		return
 	}
