@@ -45,6 +45,7 @@ type ActionStep struct {
 	Wait        bool     `json:"wait,omitempty"`         // For execute: wait for completion
 	WaitTimeout int      `json:"wait_timeout,omitempty"` // For execute: timeout in milliseconds (0 = infinite, default: 0)
 	WaitWnd     *WaitWnd `json:"wait_wnd,omitempty"`     // For execute: wait for window (only with wait: false)
+	Hide        bool     `json:"hide,omitempty"`         // For execute: hide window (default false)
 	Ms          int      `json:"ms,omitempty"`           // For delay: duration in milliseconds
 	Keys        string   `json:"keys,omitempty"`         // For keystroke: key combination
 	Text        string   `json:"text,omitempty"`         // For typing: text to type
@@ -62,48 +63,16 @@ type ButtonConfig struct {
 type ButtonsMapping struct {
 	CancelOnReload bool                  `json:"cancel_on_reload"` // Default: false
 	Buttons        map[int]*ButtonConfig `json:"buttons"`
-	logger         *zap.SugaredLogger
 }
 
 // buttonsMap is the internal implementation
 type buttonsMap struct {
 	CancelOnReload bool
 	Buttons        map[int]*ButtonConfig
-	logger         *zap.SugaredLogger
 }
 
 // get returns the action configuration for a specific button and action type
-func (bm *buttonsMap) get(buttonID int, actionType string) (*ButtonActionConfig, bool) {
-	buttonConfig, ok := bm.Buttons[buttonID]
-	if !ok {
-		return nil, false
-	}
-
-	var actionConfig *ButtonActionConfig
-	switch actionType {
-	case ButtonActionSingle:
-		actionConfig = buttonConfig.Single
-	case ButtonActionDouble:
-		actionConfig = buttonConfig.Double
-	case ButtonActionLong:
-		actionConfig = buttonConfig.Long
-	default:
-		return nil, false
-	}
-
-	if actionConfig == nil {
-		return nil, false
-	}
-
-	return actionConfig, true
-}
-
-// iterate calls the provided function for each button configuration
-func (bm *buttonsMap) iterate(f func(buttonID int, config *ButtonConfig)) {
-	for buttonID, config := range bm.Buttons {
-		f(buttonID, config)
-	}
-}
+// get returns the action configuration for a specific button and action type
 
 // buttonsMapFromConfig parses button actions configuration from viper
 func buttonsMapFromConfig(userConfig *viper.Viper, logger *zap.SugaredLogger) *buttonsMap {
@@ -112,7 +81,6 @@ func buttonsMapFromConfig(userConfig *viper.Viper, logger *zap.SugaredLogger) *b
 	bm := &buttonsMap{
 		CancelOnReload: false,
 		Buttons:        make(map[int]*ButtonConfig),
-		logger:         logger,
 	}
 
 	// Get button_actions section
@@ -286,6 +254,10 @@ func parseActionConfig(actionMap map[string]interface{}, logger *zap.SugaredLogg
 			}
 			if wait, ok := stepMap["wait"].(bool); ok {
 				step.Wait = wait
+			}
+			// Parse hide flag (optional)
+			if hide, ok := stepMap["hide"].(bool); ok {
+				step.Hide = hide
 			}
 			// Parse wait_timeout
 			if waitTimeout, ok := stepMap["wait_timeout"].(float64); ok {

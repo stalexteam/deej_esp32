@@ -92,13 +92,10 @@ func NormalizeScalar(v float32) float32 {
 }
 
 // a helper to make sure volume snaps correctly to 0 and 100, where appropriate
-func almostEquals(a float32, b float32) bool {
-	return math.Abs(float64(a-b)) < 0.000001
-}
 
 var (
 	windowsDrivePathRegex = regexp.MustCompile(`^[A-Za-z]:[/\\]`)
-	uncPathRegex = regexp.MustCompile(`^[/\\]{2}[^/\\]+[/\\]`)
+	uncPathRegex          = regexp.MustCompile(`^[/\\]{2}[^/\\]+[/\\]`)
 )
 
 // checks if a string looks like a file path

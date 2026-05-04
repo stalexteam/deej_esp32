@@ -92,14 +92,14 @@ func (sf *paSessionFinder) GetAllDevices() ([]AudioDeviceInfo, error) {
 			if name == "" {
 				name = fmt.Sprintf("Sink %d", sink.SinkIndex)
 			}
-			
+
 			description := ""
 			if sink.Properties != nil {
 				if descProp, ok := sink.Properties["device.description"]; ok {
 					description = descProp.String()
 				}
 			}
-			
+
 			devices = append(devices, AudioDeviceInfo{
 				Name:        name,
 				Type:        "Output",
@@ -120,12 +120,12 @@ func (sf *paSessionFinder) GetAllDevices() ([]AudioDeviceInfo, error) {
 			if source.MonitorSourceIndex != proto.Undefined {
 				continue
 			}
-			
+
 			name := source.SourceName
 			if name == "" {
 				name = fmt.Sprintf("Source %d", source.SourceIndex)
 			}
-			
+
 			description := ""
 			// get description if available
 			if source.Properties != nil {
@@ -133,7 +133,7 @@ func (sf *paSessionFinder) GetAllDevices() ([]AudioDeviceInfo, error) {
 					description = descProp.String()
 				}
 			}
-			
+
 			devices = append(devices, AudioDeviceInfo{
 				Name:        name,
 				Type:        "Input",

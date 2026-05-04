@@ -52,7 +52,7 @@ const (
 	SEE_MASK_FLAG_NO_UI      = 0x00000100
 	SEM_FAILCRITICALERRORS   = 0x0001
 	SEM_NOOPENFILEERRORBOX   = 0x8000
-	SEM_NOGPFAULTERRORBOX     = 0x0002
+	SEM_NOGPFAULTERRORBOX    = 0x0002
 	SW_SHOWDEFAULT           = 10
 	INFINITE                 = 0xFFFFFFFF
 	COINIT_APARTMENTTHREADED = 0x2
@@ -390,7 +390,10 @@ func typingActionImpl(ctx context.Context, step *ActionStep, logger *zap.Sugared
 	processedText := processEscapeSequences(step.Text)
 
 	// Convert to UTF-16 for Unicode support
-	utf16Text := syscall.StringToUTF16(processedText)
+	utf16Text, err := syscall.UTF16FromString(processedText)
+	if err != nil {
+		return err
+	}
 
 	// Remove trailing null terminator if present (StringToUTF16 adds it)
 	// Also filter out any null characters from the middle
@@ -597,9 +600,7 @@ func setWindowFocus(hwnd win.HWND, logger *zap.SugaredLogger) bool {
 }
 
 // setHideWindow sets HideWindow flag for Windows to hide console window
-func setHideWindow(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-}
+// setHideWindow is no longer needed on Windows because window visibility is controlled via the SHELLEXECUTEINFO.show flag.
 
 // SHELLEXECUTEINFO structure for ShellExecuteEx
 // Following the structure from nyaosorg/go-windows-su example
@@ -666,7 +667,11 @@ func executeActionPlatform(ctx context.Context, step *ActionStep, buttonID int, 
 	sei.size = uint32(unsafe.Sizeof(sei))
 	sei.mask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_UNICODE | SEE_MASK_FLAG_NO_UI
 	sei.hwnd = 0 // Use 0 as in the example
-	sei.show = SW_SHOWDEFAULT
+	if step.Hide {
+		sei.show = 0 // SW_HIDE (hide the window)
+	} else {
+		sei.show = SW_SHOWDEFAULT
+	}
 
 	// Convert strings to UTF-16
 	var err error
@@ -720,6 +725,11 @@ func executeActionPlatform(ctx context.Context, step *ActionStep, buttonID int, 
 		bh.logger.Debugw("No process handle returned (may have opened existing document)", "app", step.App)
 		return nil
 	}
+
+	// Track the process handle so it can be terminated on CancelAllActions or config reload
+	bh.trackProcessHandle(key, sei.hProcess)
+	// Ensure the handle is untracked when this function exits (whether success or error)
+	defer bh.untrackProcessHandle(key, sei.hProcess)
 
 	// Track if handle has been closed to avoid double-close
 	handleClosed := false

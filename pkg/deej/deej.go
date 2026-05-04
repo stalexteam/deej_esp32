@@ -59,7 +59,7 @@ type Deej struct {
 	stopChannel chan bool
 	version     string
 	verbose     bool
-	stopping    sync.Once  // Ensures signalStop is only called once
+	stopping    sync.Once   // Ensures signalStop is only called once
 	stopped     atomic.Bool // Set to true once shutdown begins; guards handleStateEvent from sending to closed channels
 
 	// Common event consumers for all I/O implementations

@@ -15,6 +15,31 @@ import (
 	"go.uber.org/zap"
 )
 
+// trackProcess tracks a Linux process (exec.Cmd) for forced termination on cancel_on_reload.
+func (bh *ButtonHandler) trackProcess(key string, cmd *exec.Cmd) {
+	bh.processMutex.Lock()
+	defer bh.processMutex.Unlock()
+
+	bh.trackedProcesses[key] = cmd
+	bh.logger.Debugw("Tracking process", "key", key, "pid", func() int {
+		if cmd != nil && cmd.Process != nil {
+			return cmd.Process.Pid
+		}
+		return 0
+	}())
+}
+
+// untrackProcess removes a tracked Linux process when it completes or is no longer needed.
+func (bh *ButtonHandler) untrackProcess(key string, cmd *exec.Cmd) {
+	bh.processMutex.Lock()
+	defer bh.processMutex.Unlock()
+
+	if existingCmd, ok := bh.trackedProcesses[key]; ok && existingCmd == cmd {
+		delete(bh.trackedProcesses, key)
+		bh.logger.Debugw("Untracking process", "key", key)
+	}
+}
+
 // keystrokeActionImpl implements keystroke simulation for Linux
 func keystrokeActionImpl(ctx context.Context, step *ActionStep, logger *zap.SugaredLogger) error {
 	if step.Keys == "" {
@@ -197,10 +222,20 @@ func executeActionPlatform(ctx context.Context, step *ActionStep, buttonID int, 
 		// For wait: false, start the process and track it for potential killing on cancel_on_reload
 		cmd := exec.CommandContext(ctx, step.App, step.Args...)
 
+		// If hide flag is set, hide the console window (no-op on Linux but keep for symmetry)
+		if step.Hide {
+			setHideWindow(cmd)
+		}
+
 		err := cmd.Start()
 		if err != nil {
 			return err
 		}
+
+		// Track the started process so it can be terminated on CancelAllActions or config reload
+		bh.trackProcess(key, cmd)
+		// Ensure the process is untracked when this function returns (whether success or error)
+		defer bh.untrackProcess(key, cmd)
 
 		// If wait_wnd is set, wait for window to appear
 		if step.WaitWnd != nil {
@@ -210,6 +245,8 @@ func executeActionPlatform(ctx context.Context, step *ActionStep, buttonID int, 
 					bh.logger.Debugw("Killing process due to wait_wnd timeout or error", "app", step.App, "error", err)
 					_ = cmd.Process.Kill()
 				}
+				// Untrack before returning error
+				bh.untrackProcess(key, cmd)
 				return err
 			}
 		}
@@ -217,6 +254,8 @@ func executeActionPlatform(ctx context.Context, step *ActionStep, buttonID int, 
 		// Start a goroutine to wait for process completion
 		go func() {
 			cmd.Wait()
+			// Process has finished; untrack (deferred untrack will also run, but explicit is safe)
+			bh.untrackProcess(key, cmd)
 		}()
 
 		return nil

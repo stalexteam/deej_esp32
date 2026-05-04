@@ -46,7 +46,7 @@ const (
 // It handles button press events, executes action sequences, and manages process lifecycle
 type ButtonHandler struct {
 	logger         *zap.SugaredLogger
-	notifier       Notifier                     // Notifier for showing user notifications
+	notifier       Notifier                      // Notifier for showing user notifications
 	config         *ButtonsMapping               // Current button configuration (protected by configMutex)
 	configMutex    sync.RWMutex                  // Protects config field
 	runningActions map[string]context.CancelFunc // Active action contexts keyed by "buttonID_actionType" (protected by actionsMutex)
@@ -328,31 +328,6 @@ func (bh *ButtonHandler) executeDelay(ctx context.Context, step *ActionStep) err
 		return context.Canceled
 	case <-time.After(time.Duration(step.Ms) * time.Millisecond):
 		return nil
-	}
-}
-
-// trackProcess tracks a Linux process (exec.Cmd) for forced termination on cancel_on_reload
-// The process can be killed later via CancelAllActions
-func (bh *ButtonHandler) trackProcess(key string, cmd *exec.Cmd) {
-	bh.processMutex.Lock()
-	defer bh.processMutex.Unlock()
-
-	if cmd != nil && cmd.Process != nil {
-		bh.trackedProcesses[key] = cmd
-		bh.logger.Debugw("Tracking process", "key", key, "pid", cmd.Process.Pid)
-	}
-}
-
-// untrackProcess untracks a Linux process when it completes or is no longer needed
-func (bh *ButtonHandler) untrackProcess(key string, cmd *exec.Cmd) {
-	bh.processMutex.Lock()
-	defer bh.processMutex.Unlock()
-
-	if existingCmd, ok := bh.trackedProcesses[key]; ok && existingCmd == cmd {
-		delete(bh.trackedProcesses, key)
-		if cmd != nil && cmd.Process != nil {
-			bh.logger.Debugw("Untracking process", "key", key, "pid", cmd.Process.Pid)
-		}
 	}
 }
 
